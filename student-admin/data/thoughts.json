@@ -1,0 +1,30 @@
+[
+  {
+    "id": "1767338051859",
+    "content": "new year happpy",
+    "date": "2026-01-02",
+    "adminName": "Current Admin",
+    "adminId": "admin01"
+  },
+  {
+    "id": "1767085162595",
+    "content": "===",
+    "date": "2025-12-30",
+    "adminName": "Current Admin",
+    "adminId": "admin01"
+  },
+  {
+    "id": "1",
+    "content": "The only way to do great work is to love what you do. Stay hungry, stay foolish.",
+    "date": "2024-12-26",
+    "adminName": "John Doe",
+    "adminId": "admin01"
+  },
+  {
+    "id": "2",
+    "content": "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+    "date": "2024-12-25",
+    "adminName": "Jane Smith",
+    "adminId": "admin01"
+  }
+]

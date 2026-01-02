@@ -1,0 +1,50 @@
+[
+  {
+    "id": "sa1",
+    "studentId": "STU001",
+    "studentName": "Alice Johnson",
+    "answer": "I learned that JavaScript closures can capture variables from their outer scope, which was surprising because I thought variables would be garbage collected.",
+    "questionId": "q1",
+    "submittedAt": "2024-12-26T10:30:00Z"
+  },
+  {
+    "id": "sa2",
+    "studentId": "STU002",
+    "studentName": "Bob Smith",
+    "answer": "The most surprising thing was learning about async/await - it makes asynchronous code so much more readable compared to promises!",
+    "questionId": "q1",
+    "submittedAt": "2024-12-26T11:15:00Z"
+  },
+  {
+    "id": "sa3",
+    "studentId": "STU003",
+    "studentName": "Carol Williams",
+    "answer": "I was surprised to learn that React hooks can only be called at the top level of a function component. This explains why I was getting errors before!",
+    "questionId": "q1",
+    "submittedAt": "2024-12-26T09:45:00Z"
+  },
+  {
+    "id": "sa4",
+    "studentId": "STU004",
+    "studentName": "David Brown",
+    "answer": "I would explain it like this: imagine you have a box (the closure) that remembers all the variables that were around when it was created, even after those variables should have disappeared.",
+    "questionId": "q2",
+    "submittedAt": "2024-12-26T14:20:00Z"
+  },
+  {
+    "id": "sa5",
+    "studentId": "STU005",
+    "studentName": "Emma Davis",
+    "answer": "I faced challenges with understanding recursion, but I overcame it by practicing with simple examples like factorial functions and drawing call stack diagrams.",
+    "questionId": "q3",
+    "submittedAt": "2024-12-25T10:00:00Z"
+  },
+  {
+    "id": "sa6",
+    "studentId": "STU006",
+    "studentName": "Frank Miller",
+    "answer": "I felt proud when I finally understood how to implement binary search. It took me three attempts, but when it worked perfectly, I was really happy!",
+    "questionId": "q4",
+    "submittedAt": "2024-12-25T11:30:00Z"
+  }
+]

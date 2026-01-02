@@ -163,7 +163,7 @@ export default function QuestionPage() {
                 <div 
                   key={q.id} 
                   className="p-3 sm:p-4 rounded-lg border border-purple-100 m-2 sm:m-4 transition-transform hover:scale-105 hover:bg-purple-100"
-                  onClick={() => handleQuestionClick(q)}
+                  
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 sm:mb-3 gap-2">
                     <span className="text-sm sm:text-base font-medium text-purple-900">Question {index + 1}</span>
@@ -179,9 +179,11 @@ export default function QuestionPage() {
                     {q.question}
                   </p>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 sm:pt-4 border-t border-purple-200 mt-2 sm:mt-3 gap-2">
-                    <p className="text-xs sm:text-sm text-blue-600 font-medium">
+                    <button 
+                    onClick={() => handleQuestionClick(q)}
+                    className="text-xs sm:text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors cursor-pointer">
                       Click to view student answers ({getAnswersForQuestion(q.id).length} answers)
-                    </p>
+                    </button>
                     <p className="text-xs sm:text-sm text-purple-600">{formatDate(new Date().toISOString().split('T')[0])}</p>
                     <p className="text-xs sm:text-sm text-gray-500">By Current Admin</p>
                   </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { Modal } from '@/components/admin/Modal'
@@ -23,32 +23,25 @@ export default function ThoughtPage() {
   const [currentThought, setCurrentThought] = useState<ThoughtHistoryItem | null>(null)
   const { addToast, ToastContainer } = useToast()
 
-  // Load current thought from localStorage or use mock data
+  // Load current thought from API
   useEffect(() => {
-    const savedThought = localStorage.getItem('dailyThought')
-    if (savedThought) {
-      // Create a thought item from localStorage
-      const thoughtItem: ThoughtHistoryItem = {
-        id: 'current',
-        content: savedThought,
-        date: new Date().toISOString().split('T')[0],
-        adminName: 'Current Admin',
-        adminId: 'admin_current'
+    const loadTodayThought = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0]
+        
+        // Load thoughts from API
+        const thoughtsResponse = await fetch('/api/thoughts')
+        const thoughtsData = await thoughtsResponse.json()
+        const todayThought = thoughtsData.find((thought: ThoughtHistoryItem) => thought.date === today)
+        
+        setCurrentThought(todayThought || null)
+      } catch (error) {
+        console.error('Failed to load today\'s thought:', error)
+        setCurrentThought(null)
       }
-      setCurrentThought(thoughtItem)
-    } else {
-      // Set mock thought if no data exists
-      const mockThought = 'The expert in anything was once a beginner. Every professional started as an amateur, and every master was once a disaster. Keep going, keep growing, and never stop learning.'
-      const thoughtItem: ThoughtHistoryItem = {
-        id: 'current',
-        content: mockThought,
-        date: new Date().toISOString().split('T')[0],
-        adminName: 'Current Admin',
-        adminId: 'admin_current'
-      }
-      setCurrentThought(thoughtItem)
-      localStorage.setItem('dailyThought', mockThought)
     }
+
+    loadTodayThought()
   }, [])
 
   const handleOpenModal = () => {
@@ -79,6 +72,26 @@ export default function ThoughtPage() {
     setCurrentThought(thought)
   }
 
+  const handleDeleteThought = async () => {
+    if (!currentThought) return
+    
+    try {
+      const response = await fetch(`/api/thoughts?id=${currentThought.id}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        addToast('Thought deleted successfully!', 'success')
+        setCurrentThought(null)
+      } else {
+        addToast('Failed to delete thought', 'error')
+      }
+    } catch (error) {
+      console.error('Error deleting thought:', error)
+      addToast('Failed to delete thought', 'error')
+    }
+  }
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('en-US', {
@@ -107,7 +120,7 @@ export default function ThoughtPage() {
       </div>
 
       {currentThought && (
-        <Card className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 transition-transform hover:scale-103">
+        <Card className="mb-8 bg-linear-to-r from-blue-50 to-indigo-50 transition-transform hover:scale-101">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <Lightbulb className="h-5 w-5 text-blue-600" />
@@ -117,14 +130,25 @@ export default function ThoughtPage() {
               "{currentThought.content}"
             </p>
             <div className="flex items-center justify-between pt-4 border-t border-blue-200">
-              <p className="text-xs text-blue-600">{formatDate(currentThought.date)}</p>
-              <p className="text-xs text-gray-500">By {currentThought.adminName}</p>
+              <div className="flex items-center gap-4">
+                <p className="text-xs text-blue-600">{formatDate(currentThought.date)}</p>
+                <p className="text-xs text-gray-500">By {currentThought.adminName}</p>
+              </div>
+              <Button
+                onClick={handleDeleteThought}
+                variant="outline"
+                size="sm"
+                className="text-white border-red-300 hover:bg-red-600 bg-red-400 transition-colors duration-200"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Remove
+              </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <ThoughtHistory onThoughtAdded={handleThoughtAdded} />
+      <ThoughtHistory onThoughtAdded={handleThoughtAdded} /> 
 
       <Modal
         isOpen={isModalOpen}

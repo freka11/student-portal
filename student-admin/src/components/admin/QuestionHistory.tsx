@@ -160,17 +160,15 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
                           </div>
                           
                           <div className="flex items-center gap-2">
-                            {answers.length > 0 && (
-                              <a
-                                href={`/admin/answers/${question.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 transition-colors"
-                              >
-                                <Users className="h-3 w-3 mr-1" />
-                                View Answers
-                              </a>
-                            )}
+                            <a
+                              href={`/admin/answers/${question.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 transition-colors"
+                            >
+                              <Users className="h-3 w-3 mr-1" />
+                              View Answers
+                            </a>
                           </div>
                         </div>
                       </div>

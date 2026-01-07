@@ -35,13 +35,112 @@ export default function ChatPage() {
   const { addToast, ToastContainer } = useToast()
 
   useEffect(() => {
-    // Initialize with empty state - no API calls
-    setStudents([])
-    setMessages([])
+    // Initialize with mock students and messages
+    const mockStudents: Student[] = [
+      {
+        id: 'STU001',
+        name: 'Alice Johnson',
+        avatar: 'AJ',
+        lastMessage: 'Thanks for the help!',
+        lastMessageTime: '10:30 AM',
+        unreadCount: 2,
+        isOnline: true
+      },
+      {
+        id: 'STU002',
+        name: 'Bob Smith',
+        avatar: 'BS',
+        lastMessage: 'I have a question about the assignment',
+        lastMessageTime: 'Yesterday',
+        unreadCount: 0,
+        isOnline: false
+      },
+      {
+        id: 'STU003',
+        name: 'Carol Davis',
+        avatar: 'CD',
+        lastMessage: 'Can you review my submission?',
+        lastMessageTime: '2 days ago',
+        unreadCount: 1,
+        isOnline: false
+      }
+    ]
+    
+    // Load mock messages from localStorage or initialize with sample data
+    const mockMessages: Record<string, Message[]> = {
+      'STU001': [
+        {
+          id: '1',
+          content: 'Hi, I need help with the latest assignment',
+          timestamp: '10:15 AM',
+          isSent: false,
+          isDelivered: true
+        },
+        {
+          id: '2',
+          content: 'Sure! What part are you struggling with?',
+          timestamp: '10:16 AM',
+          isSent: true,
+          isDelivered: true
+        },
+        {
+          id: '3',
+          content: 'The third question about algorithms',
+          timestamp: '10:18 AM',
+          isSent: false,
+          isDelivered: true
+        },
+        {
+          id: '4',
+          content: 'Let me explain the approach step by step...',
+          timestamp: '10:20 AM',
+          isSent: true,
+          isDelivered: true
+        },
+        {
+          id: '5',
+          content: 'Thanks for the help!',
+          timestamp: '10:30 AM',
+          isSent: false,
+          isDelivered: true
+        }
+      ],
+      'STU002': [
+        {
+          id: '1',
+          content: 'I have a question about the assignment',
+          timestamp: 'Yesterday',
+          isSent: false,
+          isDelivered: true
+        }
+      ],
+      'STU003': [
+        {
+          id: '1',
+          content: 'Can you review my submission?',
+          timestamp: '2 days ago',
+          isSent: false,
+          isDelivered: true
+        }
+      ]
+    }
+    
+    // Store in localStorage for persistence
+    const storedMessages = localStorage.getItem('adminChatMessages')
+    if (!storedMessages) {
+      localStorage.setItem('adminChatMessages', JSON.stringify(mockMessages))
+    }
+    
+    setStudents(mockStudents)
   }, [])
 
   useEffect(() => {
     if (selectedStudent) {
+      // Load messages for this student from localStorage
+      const allMessages = JSON.parse(localStorage.getItem('adminChatMessages') || '{}')
+      const studentMessages = allMessages[selectedStudent.id] || []
+      setMessages(studentMessages)
+    } else {
       setMessages([])
     }
   }, [selectedStudent])
@@ -81,7 +180,18 @@ export default function ChatPage() {
     try {
       // Simulate sending message
       await new Promise(resolve => setTimeout(resolve, 300))
+      
+      // Update messages state
       setMessages(prev => [...prev, newMsg])
+      
+      // Save to localStorage
+      const allMessages = JSON.parse(localStorage.getItem('adminChatMessages') || '{}')
+      if (!allMessages[selectedStudent.id]) {
+        allMessages[selectedStudent.id] = []
+      }
+      allMessages[selectedStudent.id].push(newMsg)
+      localStorage.setItem('adminChatMessages', JSON.stringify(allMessages))
+      
       setNewMessage('')
       
       // Simulate delivery after 1 second
@@ -93,6 +203,15 @@ export default function ChatPage() {
               : msg
           )
         )
+        
+        // Update localStorage with delivered status
+        const updatedMessages = JSON.parse(localStorage.getItem('adminChatMessages') || '{}')
+        const studentMessages = updatedMessages[selectedStudent.id] || []
+        const messageIndex = studentMessages.findIndex((msg: Message) => msg.id === newMsg.id)
+        if (messageIndex !== -1) {
+          studentMessages[messageIndex].isDelivered = true
+          localStorage.setItem('adminChatMessages', JSON.stringify(updatedMessages))
+        }
       }, 1000)
     } catch (error) {
       addToast('Failed to send message', 'error')
@@ -111,7 +230,7 @@ export default function ChatPage() {
   )
 
   return (
-    <div className="p-6 h-full">
+    <div className="p-4 sm:p-6 h-full">
       <ToastContainer />
       
       <div className="mb-6">
@@ -119,11 +238,16 @@ export default function ChatPage() {
         <p className="text-black mt-2">Communicate with students</p>
       </div>
 
-      <div className="flex gap-6 h-[calc(100vh-200px)]">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-200px)] min-h-0">
         {/* Student List */}
-        <div className="w-80">
+        <div className={`w-full lg:w-80 ${selectedStudent ? 'hidden lg:block' : ''}`}>
           <Card className="h-full">
             <CardContent className="p-4 h-full flex flex-col">
+              <div className="-m-4 mb-4 p-4 bg-[#f0f2f5] border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-[#111b21]">Chats</h2>
+                <p className="text-xs text-[#667781] mt-1">Select a student to view messages</p>
+              </div>
+
               {/* Search */}
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -132,7 +256,7 @@ export default function ChatPage() {
                   placeholder="Search students..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 bg-[#f0f2f5] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00a884] focus:border-transparent"
                 />
               </div>
 
@@ -200,14 +324,21 @@ export default function ChatPage() {
         </div>
 
         {/* Chat Conversation */}
-        <div className="flex-1">
+        <div className={`flex-1 min-h-0 ${selectedStudent ? '' : 'hidden lg:block'}`}>
           <Card className="h-full">
-            <CardContent className="p-0 h-full flex flex-col">
+            <CardContent className="p-0 h-full flex flex-col min-h-0">
               {selectedStudent ? (
                 <>
                   {/* Chat Header */}
-                  <div className="p-4 border-b border-gray-200">
+                  <div className="p-4 border-b border-gray-200 bg-[#f0f2f5]">
                     <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedStudent(null)}
+                        className="lg:hidden hover:cursor-pointer"
+                      >
+                        Back
+                      </Button>
                       <div className="relative">
                         <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
                           {selectedStudent.avatar}
@@ -217,8 +348,8 @@ export default function ChatPage() {
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-black">{selectedStudent.name}</p>
-                        <p className="text-sm text-black">
+                        <p className="font-medium text-[#111b21]">{selectedStudent.name}</p>
+                        <p className="text-sm text-[#667781]">
                           {selectedStudent.isOnline ? 'Online' : 'Offline'}
                         </p>
                       </div>
@@ -226,7 +357,7 @@ export default function ChatPage() {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 transition-colors" id="admin-chat-messages-container">
+                  <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2 bg-white scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 transition-colors" id="admin-chat-messages-container">
                     {messages.map((message) => (
                       <ChatBubble
                         key={message.id}
@@ -240,22 +371,24 @@ export default function ChatPage() {
                   </div>
 
                   {/* Message Input */}
-                  <div className="p-4 border-t border-gray-200">
-                    <div className="flex gap-3">
+                  <div className="p-3 border-t border-gray-200 bg-[#f0f2f5]">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <input
                         type="text"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyPress={handleKeyPress}
                         placeholder="Type your message..."
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="flex-1 px-4 py-2 bg-white border border-gray-200 rounded-full focus:outline-none  focus:border-transparent"
                       />
                       <Button 
                         onClick={handleSendMessage}
                         disabled={!newMessage.trim()}
-                        className="flex items-center gap-2"
+                        className="flex items-center justify-center gap-2 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
                       >
-                        Send
+                         Send
+                        <Send className="h-4 w-4" />
+                       
                       </Button>
                     </div>
                   </div>
@@ -272,6 +405,20 @@ export default function ChatPage() {
             </CardContent>
           </Card>
         </div>
+
+        {!selectedStudent && (
+          <div className="flex-1 min-h-0 lg:hidden">
+            <Card className="h-full">
+              <CardContent className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <MessageSquare className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <p className="text-black text-lg">Select a student to start chatting</p>
+                  <p className="text-black text-sm mt-2">Choose from the student list above</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   )

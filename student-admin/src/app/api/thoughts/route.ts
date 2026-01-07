@@ -20,20 +20,16 @@ export async function POST(request: NextRequest) {
     const newThoughtData = await request.json()
     const filePath = path.join(process.cwd(), 'data', 'thoughts.json')
     
-    // Read existing thoughts
     let existingThoughts = []
     try {
       const fileContents = fs.readFileSync(filePath, 'utf8')
       existingThoughts = JSON.parse(fileContents)
     } catch (error) {
-      // File doesn't exist or is empty
       existingThoughts = []
     }
     
-    // Add new thought to the beginning
     existingThoughts.unshift(newThoughtData)
     
-    // Write back to file
     fs.writeFileSync(filePath, JSON.stringify(existingThoughts, null, 2))
     
     return NextResponse.json({ success: true, message: 'Thought saved successfully' })
@@ -54,20 +50,16 @@ export async function DELETE(request: NextRequest) {
     
     const filePath = path.join(process.cwd(), 'data', 'thoughts.json')
     
-    // Read existing thoughts
     let existingThoughts = []
     try {
       const fileContents = fs.readFileSync(filePath, 'utf8')
       existingThoughts = JSON.parse(fileContents)
     } catch (error) {
-      // File doesn't exist or is empty
       existingThoughts = []
     }
     
-    // Remove the thought with the specified ID
     const updatedThoughts = existingThoughts.filter((thought: any) => thought.id !== thoughtId)
     
-    // Write back to file
     fs.writeFileSync(filePath, JSON.stringify(updatedThoughts, null, 2))
     
     return NextResponse.json({ success: true, message: 'Thought deleted successfully' })

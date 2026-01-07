@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
-import { HelpCircle, Calendar, User, Plus, Trash2, Users } from 'lucide-react'
+import { HelpCircle, Calendar, User, Plus, Trash2, Users, Search, X } from 'lucide-react'
 
 interface Question {
   id: string
@@ -38,6 +38,7 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
   const [questionHistory, setQuestionHistory] = useState<QuestionHistoryItem[]>([])
   const [studentAnswers, setStudentAnswers] = useState<StudentAnswer[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     // Load data from JSON files
@@ -88,6 +89,34 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
     })
   }
 
+  const normalizedQuery = searchTerm.trim().toLowerCase()
+  const filteredHistory = normalizedQuery
+    ? questionHistory
+        .map((historyItem) => {
+          const questions = historyItem.questions.filter((q) => {
+            const haystack = [
+              q.question,
+              q.status,
+              q.adminName,
+              historyItem.adminName,
+              historyItem.date,
+              formatDate(historyItem.date)
+            ]
+              .filter(Boolean)
+              .join(' ')
+              .toLowerCase()
+
+            return haystack.includes(normalizedQuery)
+          })
+
+          return {
+            ...historyItem,
+            questions
+          }
+        })
+        .filter((h) => h.questions.length > 0)
+    : questionHistory
+
   if (loading) {
     return (
       <Card>
@@ -110,21 +139,49 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Question History
-        </CardTitle>
+        <div className="space-y-4">
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Question History
+          </CardTitle>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search questions, status, admin, or date..."
+              className="w-full pl-9 pr-10 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+            {searchTerm.trim() && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-100"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4 text-gray-500" />
+              </button>
+            )}
+          </div>
+        </div>
       </CardHeader>
       <CardContent  >
-        {questionHistory.length === 0 ? (
+        {filteredHistory.length === 0 ? (
           <div className="text-center py-8 ">
             <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Question History</h3>
-            <p className="text-gray-500">Questions will appear here once they are created.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {questionHistory.length === 0 ? 'No Question History' : 'No Results'}
+            </h3>
+            <p className="text-gray-500">
+              {questionHistory.length === 0
+                ? 'Questions will appear here once they are created.'
+                : 'Try a different search term.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-6 ">
-            {questionHistory.map((historyItem) => (
+            {filteredHistory.map((historyItem) => (
               <div key={historyItem.id} className="border border-gray-200 rounded-lg p-4 hover:scale-102 transition-transform duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">

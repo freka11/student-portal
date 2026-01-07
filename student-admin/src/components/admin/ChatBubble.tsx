@@ -13,21 +13,21 @@ export function ChatBubble({ message, timestamp, isSent, isDelivered = false }: 
     <div className={cn('flex', isSent ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-xs lg:max-w-md px-4 py-2 rounded-lg',
+          'max-w-[85%] sm:max-w-xs lg:max-w-md px-3 py-2 rounded-lg shadow-sm wrap-break-word',
           isSent
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-100 text-gray-900'
+            ? 'bg-blue-500 text-white rounded-tr-sm'
+            : 'bg-white text-[#111b21] rounded-tl-sm'
         )}
       >
-        <p className="text-sm">{message}</p>
-        <div className={cn('flex items-center justify-between mt-1', isSent ? 'text-blue-100' : 'text-gray-500')}>
-          <p className="text-xs">{timestamp}</p>
+        <p className="text-sm leading-snug whitespace-pre-wrap">{message}</p>
+        <div className="mt-1 flex items-end justify-end gap-1 text-[#667781]">
+          <p className="text-[11px] leading-none">{timestamp}</p>
           {isSent && (
-            <div className="ml-2">
+            <div className="ml-0.5">
               {isDelivered ? (
-                <CheckCheck className="h-3 w-3" />
+                <CheckCheck className={cn('h-4 w-4', isDelivered ? 'text-[#53bdeb]' : 'text-[#667781]')} />
               ) : (
-                <Check className="h-3 w-3" />
+                <Check className="h-4 w-4 text-[#667781]" />
               )}
             </div>
           )}

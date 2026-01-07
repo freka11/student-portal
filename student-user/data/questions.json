@@ -1,0 +1,51 @@
+[
+  {
+    "id": "qh_2026_01_07",
+    "date": "2026-01-07",
+    "questions": [
+      {
+        "id": "q_20260107_1",
+        "question": "What did you build or learn today that you’re proud of, and what would you improve next time?",
+        "status": "published"
+      },
+      {
+        "id": "q_20260107_2",
+        "question": "Describe one bug you solved recently. What was the root cause and how did you verify the fix?",
+        "status": "published"
+      }
+    ],
+    "adminName": "Current Admin",
+    "adminId": "admin01"
+  },
+  {
+    "id": "qh_2026_01_02",
+    "date": "2026-01-02",
+    "questions": [
+      {
+        "id": "q_20260102_1",
+        "question": "If you could redesign your study routine, what would you change and why?",
+        "status": "published"
+      },
+      {
+        "id": "q_20260102_2",
+        "question": "What is one concept you found confusing at first, and what made it click?",
+        "status": "published"
+      }
+    ],
+    "adminName": "Current Admin",
+    "adminId": "admin01"
+  },
+  {
+    "id": "qh_2025_12_30",
+    "date": "2025-12-30",
+    "questions": [
+      {
+        "id": "q_20251230_1",
+        "question": "What’s one small habit you can do daily to become better at programming?",
+        "status": "published"
+      }
+    ],
+    "adminName": "Current Admin",
+    "adminId": "admin01"
+  }
+]

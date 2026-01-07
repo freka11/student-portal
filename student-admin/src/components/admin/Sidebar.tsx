@@ -35,7 +35,7 @@ export function Sidebar() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md border border-gray-200"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md border border-gray-200 "
       >
         {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </button>
@@ -51,7 +51,7 @@ export function Sidebar() {
       {/* Sidebar */}
       <div className={`
         fixed top-0 left-0 z-50 h-full bg-white shadow-lg transition-transform duration-300 ease-in-out
-        lg:translate-x-0 lg:static lg:z-auto
+        lg:translate-x-0 lg:static lg:z-auto active:scale-100
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         w-64
       `}>
@@ -83,10 +83,12 @@ export function Sidebar() {
                     key={item.name}
                     href={item.href}
                     className={`
-                      flex items-center px-3 py-2 mb-1 rounded-lg text-sm font-medium transition-colors
-                      ${isActive 
-                        ? 'bg-blue-50 text-black border-r-2 border-blue-700' 
-                        : 'text-black hover:bg-gray-50 hover:text-black'
+                      flex items-center px-3 py-2 mb-1 rounded-lg text-sm font-medium hover:scale-105
+                      transition-transform duration-200 ease-in-out active:scale-100
+                      ${
+                        isActive
+                          ? 'bg-blue-50 text-black '
+                          : 'text-black hover:bg-gray-50'
                       }
                     `}
                   >
@@ -109,10 +111,12 @@ export function Sidebar() {
                     href={tab.href}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`
-                      block px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                      ${isActive 
-                        ? 'bg-blue-50 text-black border-r-2 border-blue-700' 
-                        : 'text-black hover:bg-gray-50 hover:text-black'
+                      flex items-center px-3 py-2 mb-1 rounded-lg text-sm font-medium hover:scale-105
+                      transition-transform duration-200 ease-in-out active:scale-100
+                      ${
+                        isActive
+                          ? 'bg-blue-50 text-black '
+                          : 'text-black hover:bg-gray-50'
                       }
                     `}
                   >

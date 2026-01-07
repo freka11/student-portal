@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/admin/Button'
 import { Textarea } from '@/components/admin/Textarea'
 import { useToast } from '@/components/admin/Toast'
-import { Lightbulb, HelpCircle, MessageSquare, FileText, CheckCircle, Send, X } from 'lucide-react'
+import { Lightbulb, HelpCircle, MessageSquare, FileText, CheckCircle, Send, X, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface Thought {
   id: string
@@ -46,10 +46,25 @@ interface AnswerModalProps {
 
 function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps) {
   const [answer, setAnswer] = useState('')
+  const [existingAnswer, setExistingAnswer] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { addToast } = useToast()
 
+  useEffect(() => {
+    const dateKey = question.date || new Date().toISOString().split('T')[0]
+    const stored = localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
+    setExistingAnswer(stored)
+  }, [question.id, question.date])
+
   const handleSubmit = async () => {
+    const dateKey = question.date || new Date().toISOString().split('T')[0]
+    const currentlyStored = localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
+
+    if (existingAnswer || currentlyStored) {
+      addToast('You already submitted an answer for this question.', 'error')
+      return
+    }
+
     if (!answer.trim()) {
       addToast('Please enter your answer before submitting', 'error')
       return
@@ -64,13 +79,12 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
     
     try {
       // Save answer to localStorage
-      const today = new Date().toISOString().split('T')[0]
-      localStorage.setItem(`answer_${question.id}_${today}`, answer)
+      localStorage.setItem(`answer_${question.id}_${dateKey}`, answer)
       
       // Save to answers history
       const answers = JSON.parse(localStorage.getItem('userAnswers') || '[]')
       answers.unshift({
-        date: today,
+        date: dateKey,
         question: question.question,
         answer: answer,
         timestamp: new Date().toISOString()
@@ -84,7 +98,7 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
         localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions))
       }
       
-      localStorage.setItem('lastAnswerDate', today)
+      localStorage.setItem('lastAnswerDate', dateKey)
       
       onAnswerSubmitted(question.id)
       setAnswer('')
@@ -97,31 +111,44 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-black mb-2">
-          Your Answer
-        </label>
-        <Textarea
-          placeholder="Share your thoughts on this question..."
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          className="min-h-32"
-          disabled={isSubmitting}
-        />
-        <p className="text-xs text-black mt-1">
-          {answer.length}/500 characters (minimum 10 characters)
-        </p>
-      </div>
+      {existingAnswer ? (
+        <div>
+          <label className="block text-sm font-medium text-black mb-2">Your Answer</label>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <p className="text-sm text-gray-800 whitespace-pre-wrap">{existingAnswer}</p>
+          </div>
+          <p className="text-xs text-gray-600 mt-2">This answer is already submitted and cannot be edited.</p>
+        </div>
+      ) : (
+        <div>
+          <label className="block text-sm font-medium text-black mb-2">
+            Your Answer
+          </label>
+          <Textarea
+            placeholder="Share your thoughts on this question..."
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            className="min-h-32"
+            disabled={isSubmitting}
+          />
+          <p className="text-xs text-black mt-1">
+            {answer.length}/500 characters (minimum 10 characters)
+          </p>
+        </div>
+      )}
       
       <div className="flex gap-3">
-        <Button 
-          onClick={handleSubmit} 
-          disabled={isSubmitting || !answer.trim() || answer.length < 10}
-          className="flex items-center gap-2 hover:cursor-pointer"
-        >
-          <Send className="h-4 w-4" />
-          {isSubmitting ? 'Submitting...' : 'Submit Answer'}
-        </Button>
+        {!existingAnswer && (
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting || !answer.trim() || answer.length < 10}
+            className="flex items-center gap-2 hover:cursor-pointer"
+          >
+            <Send className="h-4 w-4" />
+            {isSubmitting ? 'Submitting...' : 'Submit Answer'}
+          </Button>
+
+        )}
         
         <Button 
           variant="outline" 
@@ -145,6 +172,7 @@ export default function UserDashboard() {
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
   const [showAnswerModal, setShowAnswerModal] = useState(false)
   const [answeredQuestions, setAnsweredQuestions] = useState<string[]>([])
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const { addToast, ToastContainer } = useToast()
 
@@ -189,6 +217,26 @@ export default function UserDashboard() {
 
     loadTodayContent()
   }, [])
+
+
+  const getLocalAnswerForQuestion = (question: Question) => {
+    const dateKey = question.date || new Date().toISOString().split('T')[0]
+    return localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
+  }
+
+  const isQuestionAnswered = (question: Question) => {
+    const localAnswer = getLocalAnswerForQuestion(question)
+    return answeredQuestions.includes(question.id) || !!localAnswer
+  }
+
+  const toggleQuestionExpansion = (questionId: string) => {
+    setExpandedQuestions((prev) => {
+      const next = new Set(prev)
+      if (next.has(questionId)) next.delete(questionId)
+      else next.add(questionId)
+      return next
+    })
+  }
 
   const stats = [
     {
@@ -277,7 +325,7 @@ export default function UserDashboard() {
 
       
       {/* Question of the Day Section */}
-      <Card className="mb-8 bg-linear-to-r from-purple-50 to-pink-50 ml-2 mr-2 hover:scale-103 transction-all duration-200 hover:shadow-lg ">
+      <Card className="mb-8 bg-linear-to-r from-purple-50 to-pink-50 ml-2 mr-2 hover:scale-103 transction-all  duration-200 hover:shadow-lg ">
         <CardHeader>
           <div>
             <CardTitle className="flex items-center gap-2">
@@ -296,15 +344,20 @@ export default function UserDashboard() {
               </div>
             ) : dailyContent.questions.filter(q => q.status === 'published').length > 0 ? (
               dailyContent.questions.filter(q => q.status === 'published').map((q, index) => (
+                (() => {
+                  const savedAnswer = isQuestionAnswered(q) ? getLocalAnswerForQuestion(q) : ''
+                  const isExpanded = expandedQuestions.has(q.id)
+
+                  return (
                 <div 
                 key={q.id} 
 
-                className="p-4 rounded-lg border border-purple-200 bg-linear-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 cursor-pointer transition-all duration-300 ease-out   hover:scale-101 ">
+                className="p-4 rounded-lg border border-purple-200 bg-linear-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out   hover:scale-101 ">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-sm font-medium text-purple-900">Question {index + 1}</span>
-                        {answeredQuestions.includes(q.id) && (
+                        {isQuestionAnswered(q) && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             ✓ Answered
                           </span>
@@ -313,20 +366,50 @@ export default function UserDashboard() {
                       <p className="text-black mb-3">{q.question}</p>
                     </div>
                   </div>
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleQuestionExpansion(q.id)}
+                      className="inline-flex items-center gap-2 text-sm text-purple-900 hover:text-purple-950"
+                    >
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 cursor-pointer" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 cursor-pointer" />
+                      )}
+                      Details
+                    </button>
+
                     <Button 
                       onClick={() => {
                         setSelectedQuestion(q)
                         setShowAnswerModal(true)
                       }}
-                      disabled={answeredQuestions.includes(q.id)}
+                      disabled={isQuestionAnswered(q)}
                       className="hover:cursor-pointer bg-linear-to-r from-pink-200 to-purple-300 hover:from-pink-300 hover:to-purple-400"
                       size="sm"
                     >
-                      {answeredQuestions.includes(q.id) ? 'Already Answered' : 'Answer Question'}
+                      {isQuestionAnswered(q) ? 'Already Answered' : 'Answer Question'}
                     </Button>
                   </div>
+
+                  {isExpanded && (
+                    <div className="mt-4 border-t border-purple-200 pt-4 space-y-4">
+                      <div>
+                        <h4 className="text-sm font-medium text-black mb-2">Your Answer</h4>
+                        {savedAnswer ? (
+                          <div className="border border-purple-100 rounded-lg p-3 bg-white">
+                            <p className="text-gray-700 text-sm">{savedAnswer}</p>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-600">No answer submitted yet.</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
+                  )
+                })()
               ))
             ) : (
               <div className="text-center py-4">
@@ -344,8 +427,19 @@ export default function UserDashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <Card className="max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <CardHeader>
-              <CardTitle className="text-xl">Answer Question</CardTitle>
-              <CardDescription>Share your thoughts on this question</CardDescription>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="text-xl">Answer Question</CardTitle>
+                  <CardDescription>Share your thoughts on this question</CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAnswerModal(false)}
+                  className="hover:cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">

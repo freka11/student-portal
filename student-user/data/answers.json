@@ -1,0 +1,50 @@
+[
+  {
+    "id": "a1",
+    "studentId": "STU101",
+    "studentName": "Aarav Kumar",
+    "answer": "Today I built a simple form validation flow in React. Next time I’d improve accessibility by adding proper aria attributes and focus management.",
+    "questionId": "q_20260107_1",
+    "submittedAt": "2026-01-07T09:10:00Z"
+  },
+  {
+    "id": "a2",
+    "studentId": "STU102",
+    "studentName": "Meera Iyer",
+    "answer": "I learned how to use `useMemo` properly. I’d improve by measuring performance before optimizing so I don’t add complexity unnecessarily.",
+    "questionId": "q_20260107_1",
+    "submittedAt": "2026-01-07T10:05:00Z"
+  },
+  {
+    "id": "a3",
+    "studentId": "STU103",
+    "studentName": "Rohit Sharma",
+    "answer": "I fixed a bug where a button click wasn’t working because the handler was attached to the wrong element. I verified using console logs and by writing a small UI test.",
+    "questionId": "q_20260107_2",
+    "submittedAt": "2026-01-07T11:30:00Z"
+  },
+  {
+    "id": "a4",
+    "studentId": "STU104",
+    "studentName": "Sana Khan",
+    "answer": "At first async/await was confusing because I expected code to run top-to-bottom. It clicked when I learned about promises and the event loop.",
+    "questionId": "q_20260102_2",
+    "submittedAt": "2026-01-02T12:45:00Z"
+  },
+  {
+    "id": "a5",
+    "studentId": "STU105",
+    "studentName": "Vikram Singh",
+    "answer": "I’d redesign my routine by doing 30 minutes of problem solving first, then reading docs. Starting with problems shows what I actually don’t understand.",
+    "questionId": "q_20260102_1",
+    "submittedAt": "2026-01-02T13:20:00Z"
+  },
+  {
+    "id": "a6",
+    "studentId": "STU106",
+    "studentName": "Ananya Das",
+    "answer": "A daily habit: write one small reusable component and document it. It improves consistency and forces you to think clearly about APIs.",
+    "questionId": "q_20251230_1",
+    "submittedAt": "2025-12-30T08:40:00Z"
+  }
+]

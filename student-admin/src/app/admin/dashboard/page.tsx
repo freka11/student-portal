@@ -7,6 +7,10 @@ import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { Lightbulb, HelpCircle, Edit, Users, MessageSquare } from 'lucide-react'
 
+
+
+
+
 interface Thought {
   id: string
   content: string
@@ -32,11 +36,27 @@ interface QuestionHistoryItem {
   adminId: string
 }
 
+interface AdminUser {
+  id: string
+  username: string
+  name: string
+}
+
 export default function Dashboard() {
   const [todayThought, setTodayThought] = useState<Thought | null>(null)
   const [todayQuestions, setTodayQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const { addToast, ToastContainer } = useToast()
+  
+  const [isModalOpen, setIsModalOpen] = useState(false)
+    const handleOpenModal = () => {
+    setIsModalOpen(true)
+  }
+
+
+
+  
+
 
   // Load today's content from JSON APIs
   useEffect(() => {
@@ -107,6 +127,9 @@ export default function Dashboard() {
     }
   ]
 
+
+
+
   return (
     <div className="p-4 sm:p-6">
       <ToastContainer />
@@ -151,8 +174,8 @@ export default function Dashboard() {
               </div>
               <Link href="/admin/thought">
                 <Button variant="outline" size="sm">
-                  <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">Edit</span>
+                 
+                  View all
                 </Button>
               </Link>
             </div>
@@ -186,8 +209,7 @@ export default function Dashboard() {
               </div>
               <Link href="/admin/question">
                 <Button variant="outline" size="sm">
-                  <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">Edit</span>
+                View all
                 </Button>
               </Link>
             </div>
@@ -230,13 +252,13 @@ export default function Dashboard() {
       <div className="mt-6 sm:mt-8">
         <h2 className="text-base sm:text-lg font-semibold text-black mb-3 sm:mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <Link href="/admin/thought">
+          <Link href="/admin/thought?add=true">
             <Button className="w-full justify-start" variant="outline">
               <Lightbulb className="h-4 w-4 mr-2" />
               Create New Thought
             </Button>
           </Link>
-          <Link href="/admin/question">
+          <Link href="/admin/question?add=true">
             <Button className="w-full justify-start" variant="outline">
               <HelpCircle className="h-4 w-4 mr-2" />
               Create New Question

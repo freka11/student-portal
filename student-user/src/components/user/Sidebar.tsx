@@ -3,6 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/admin/Button'
+import { LogOut } from 'lucide-react'
+import { User } from 'lucide-react'
 import {
   LayoutDashboard,
   MessageSquare,
@@ -14,14 +19,14 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/user/dashboard', icon: LayoutDashboard },
-  { name: 'Previous Questions', href: '/user/previous-questions', icon: Calendar },
+  { name: 'Questions', href: '/user/previous-questions', icon: Calendar },
   { name: 'My Answers', href: '/user/answers', icon: FileText },
   { name: 'Chat with Admin', href: '/user/chat', icon: MessageSquare },
 ]
 
 const tabs = [
   { name: 'Dashboard', href: '/user/dashboard' },
-  { name: 'Previous Questions', href: '/user/previous-questions' },
+  { name: 'Questions', href: '/user/previous-questions' },
   { name: 'My Answers', href: '/user/answers' },
   { name: 'Chat with Admin', href: '/user/chat' },
 ]
@@ -29,6 +34,24 @@ const tabs = [
 export function Sidebar() {
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const router = useRouter()
+  const [user, setUser] = useState<User | null>(null)
+
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+
+    useEffect(() => {
+    const storedUser = localStorage.getItem('user')
+    if (!storedUser) {
+      router.replace('/user/login')
+      return
+    }
+    setUser(JSON.parse(storedUser))
+  }, [router])
+
+  const logout = () => {
+    localStorage.removeItem('user')
+    router.push('/user/login')
+  }
 
   return (
     <>
@@ -54,6 +77,26 @@ export function Sidebar() {
           w-64
         `}
       >
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5 text-gray-500" />
+              <div className="flex flex-col leading-tight">
+            
+                <span className="text-lg text-black">
+                  { user?.username}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              
+              onClick={()=>setShowLogoutModal(true)}
+            
+              className='cursor-pointer hover:scale-105 transition-all duration-200 bg-white hover:bg-red-500'
+            >
+              <LogOut className="h-4 w-4 text-gray-600" />
+            </Button>
+          </div>
         <div className="p-4 lg:p-6">
           <div className="hidden lg:block mb-6">
             <h1 className="text-xl lg:text-2xl font-bold text-black">Student Portal</h1>
@@ -69,6 +112,7 @@ export function Sidebar() {
               <X className="h-5 w-5" />
             </button>
           </div>
+  
 
           <nav className="hidden lg:mt-6 lg:block">
             <div className="px-3">
@@ -78,9 +122,10 @@ export function Sidebar() {
                   <Link
                     key={item.name}
                     href={item.href}
+     
                     className={`
                       flex items-center px-3 py-2 mb-1 rounded-lg text-sm font-medium hover:scale-105
-                      transition-transform duration-200 ease-in-out active:scale-100
+                      transition-transform duration-200 ease-in-out active:scale-100 
                       ${
                         isActive
                           ? 'bg-blue-50 text-black '
@@ -123,6 +168,41 @@ export function Sidebar() {
           </nav>
         </div>
       </div>
+
+
+      {showLogoutModal && (
+  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+    <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-sm p-6">
+      <h2 className="text-lg font-semibold text-black">
+        Confirm Logout
+      </h2>
+
+      <p className="text-sm text-gray-600 mt-2">
+        Are you sure you want to logout?
+      </p>
+
+      <div className="flex justify-end gap-3 mt-6">
+        <button
+          onClick={() => setShowLogoutModal(false)}
+          className="px-4 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+        >
+          No
+        </button>
+
+        <button
+          onClick={() => {
+            setShowLogoutModal(false)
+            logout()
+          }}
+          className="px-4 py-2 rounded-lg text-sm text-white bg-red-500 hover:bg-red-600 cursor-pointer"
+        >
+          Yes
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </>
   )
 }

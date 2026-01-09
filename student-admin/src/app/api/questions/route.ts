@@ -2,13 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const dateFilter = searchParams.get('date')
     const filePath = path.join(process.cwd(), 'data', 'questions.json')
     const fileContents = fs.readFileSync(filePath, 'utf8')
     const questions = JSON.parse(fileContents)
     
-    return NextResponse.json(questions)
+    // If date=all, return all questions (for history)
+    if (dateFilter === 'all') {
+      return NextResponse.json(questions)
+    }
+    
+    // Default: return only today's questions
+    const today = new Date().toISOString().split('T')[0]
+    const todayQuestions = questions.filter((item: any) => item.date === today)
+    
+    return NextResponse.json(todayQuestions)
   } catch (error) {
     console.error('Error reading questions:', error)
     return NextResponse.json([], { status: 500 })

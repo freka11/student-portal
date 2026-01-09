@@ -45,7 +45,7 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
     const loadData = async () => {
       try {
         // Load questions history
-        const questionsResponse = await fetch('/api/questions')
+        const questionsResponse = await fetch('/api/questions?date=all')
         const questionsData = await questionsResponse.json()
         
         // Load student answers

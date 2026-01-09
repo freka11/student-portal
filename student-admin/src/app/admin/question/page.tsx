@@ -9,11 +9,14 @@ import { QuestionHistory } from '@/components/admin/QuestionHistory'
 import QuestionEditor from '@/components/admin/QuestionEditor'
 import { Card, CardContent } from '@/components/admin/Card'
 import { HelpCircle, Users } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 
 interface Question {
   id: string
   question: string
   status: 'published' | 'draft'
+  date?: string
 }
 
 interface StudentAnswer {
@@ -66,34 +69,62 @@ export default function QuestionPage() {
   const [currentQuestions, setCurrentQuestions] = useState<Question[]>([])
   const { addToast, ToastContainer } = useToast()
 
-  // Load current questions from localStorage or use mock data
+  // Load current questions from API (network mode) or localStorage fallback
   useEffect(() => {
-    const savedQuestions = localStorage.getItem('dailyQuestions')
-    if (savedQuestions) {
-      const parsed = JSON.parse(savedQuestions)
-      setCurrentQuestions(parsed)
-    } else {
-      // Set mock questions if no data exists
-      const mockQuestions = [
-        {
-          id: 'q1',
-          question: 'What is the most surprising thing you learned this week, and how did it change your perspective?',
-          status: 'published' as const
-        },
-        {
-          id: 'q2',
-          question: 'Describe a challenge you faced recently and how you overcame it.',
-          status: 'published' as const
-        },
-        {
-          id: 'q3',
-          question: 'What skill would you like to develop next, and what steps will you take to learn it?',
-          status: 'draft' as const
+    const loadQuestions = async () => {
+      try {
+        // Try to fetch from API first (network mode)
+        const response = await fetch('/api/questions')
+        if (response.ok) {
+          const data = await response.json()
+          // Extract questions from today's data structure
+          const todayQuestions = data.length > 0 ? data[0]?.questions || [] : []
+          setCurrentQuestions(todayQuestions)
+          return
         }
-      ]
-      setCurrentQuestions(mockQuestions)
-      localStorage.setItem('dailyQuestions', JSON.stringify(mockQuestions))
+      } catch (error) {
+        console.log('Network mode failed, falling back to localStorage')
+      }
+
+      // Fallback to localStorage
+      const today = new Date().toISOString().split('T')[0]
+      const savedQuestions = localStorage.getItem('dailyQuestions')
+      if (savedQuestions) {
+        const parsed = JSON.parse(savedQuestions)
+        // Filter to only show today's questions
+        const todayQuestions = parsed.filter((q: Question) => {
+          const questionDate = q.date || today
+          return questionDate === today
+        })
+        setCurrentQuestions(todayQuestions)
+      } else {
+        // Set mock questions if no data exists
+        const mockQuestions = [
+          {
+            id: 'q1',
+            question: 'What is the most surprising thing you learned this week, and how did it change your perspective?',
+            status: 'published' as const,
+            date: today
+          },
+          {
+            id: 'q2',
+            question: 'Describe a challenge you faced recently and how you overcame it.',
+            status: 'published' as const,
+            date: today
+          },
+          {
+            id: 'q3',
+            question: 'What skill would you like to develop next, and what steps will you take to learn it?',
+            status: 'draft' as const,
+            date: today
+          }
+        ]
+        setCurrentQuestions(mockQuestions)
+        localStorage.setItem('dailyQuestions', JSON.stringify(mockQuestions))
+      }
     }
+
+    loadQuestions()
   }, [])
 
   const handleQuestionClick = (question: Question) => {
@@ -116,7 +147,14 @@ export default function QuestionPage() {
   const handleQuestionsSaved = (questions: Question[]) => {
     addToast('Questions saved successfully!', 'success')
     handleCloseModal()
-    setCurrentQuestions(questions)
+    // Add today's date to questions if not present
+    const today = new Date().toISOString().split('T')[0]
+    const questionsWithDate = questions.map(q => ({
+      ...q,
+      date: q.date || today
+    }))
+    setCurrentQuestions(questionsWithDate)
+    localStorage.setItem('dailyQuestions', JSON.stringify(questionsWithDate))
   }
 
   const handleQuestionsAdded = (questionItem: QuestionHistoryItem) => {
@@ -133,6 +171,26 @@ export default function QuestionPage() {
       day: 'numeric'
     })
   }
+const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+useEffect(() => {
+    if (searchParams.get('add') !== 'true') return
+
+    setIsModalOpen(true)
+
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('add')
+
+    const cleanUrl = params.toString()
+      ? `${pathname}?${params.toString()}`
+      : pathname
+
+    router.replace(cleanUrl, { scroll: false })
+  }, [searchParams, pathname, router])
+
+
 
   return (
     <div className="p-4 sm:p-6">
@@ -156,7 +214,7 @@ export default function QuestionPage() {
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-3 sm:mb-4">
               <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-              <span className="text-sm sm:text-base font-medium text-purple-900">Today's Questions</span>
+              <span className="text-sm sm:text-base font-medium text-purple-900">Today's Question</span>
             </div>
             <div className="space-y-3 sm:space-y-4">
               {currentQuestions.map((q, index) => (

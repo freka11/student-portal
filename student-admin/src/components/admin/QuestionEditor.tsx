@@ -255,15 +255,6 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
                 </div>
               ))}
             </div>
-            
-            <Button
-              onClick={addQuestion}
-              variant="outline"
-              className="flex items-center gap-2 w-full"
-            >
-              <Plus className="h-4 w-4" />
-              Add Another Question
-            </Button>
           </>
         )}
         

@@ -159,7 +159,7 @@ export default function AnswersByQuestionPage() {
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div className="flex-1">
                   <h2 className="text-base sm:text-lg font-semibold text-black mb-1 sm:mb-2">
-                    Question {questionId}
+                    Question 
                   </h2>
                   <p className="text-sm sm:text-base text-gray-700 mb-2 sm:mb-3">{question.question}</p>
                   <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">

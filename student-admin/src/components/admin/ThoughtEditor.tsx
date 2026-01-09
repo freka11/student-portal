@@ -130,7 +130,7 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 ">
           <Lightbulb className="h-5 w-5" />
           {isNewThought ? 'Create Thought' : 'Update Thought'}
         </CardTitle>
@@ -151,6 +151,7 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
             placeholder="Enter your inspirational thought here..."
             value={thought}
             onChange={(e) => setThought(e.target.value)}
+
             className="min-h-32"
           />
         </div>
@@ -206,5 +207,6 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
         )}
       </CardContent>
     </Card>
+    
   )
 }

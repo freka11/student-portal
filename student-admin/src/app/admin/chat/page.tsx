@@ -238,7 +238,8 @@ export default function ChatPage() {
         <p className="text-black mt-2">Communicate with students</p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-200px)] min-h-0">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-160px)] overflow-hidden">
+
         {/* Student List */}
         <div className={`w-full lg:w-80 ${selectedStudent ? 'hidden lg:block' : ''}`}>
           <Card className="h-full">
@@ -269,11 +270,11 @@ export default function ChatPage() {
                   </div>
                 ) : filteredStudents.length === 0 ? (
                   <div className="text-center py-8">
-                    <User className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                    <User className="h-12 w-12 text-gray-400 mx-2 mb-2" />
                     <p className="text-gray-500">No students found</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="">
                     {filteredStudents.map((student) => (
                       <div
                         key={student.id}
@@ -281,13 +282,13 @@ export default function ChatPage() {
                         className={`
                           p-3 rounded-lg cursor-pointer transition-colors
                           ${selectedStudent?.id === student.id 
-                            ? 'bg-blue-50 border border-blue-200' 
+                            ? 'bg-blue-50 border border-none' 
                             : 'hover:bg-gray-50'
                           }
                         `}
                       >
                         <div className="flex items-start gap-3">
-                          <div className="relative">
+                          <div className="">
                             <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
                               {student.avatar}
                             </div>

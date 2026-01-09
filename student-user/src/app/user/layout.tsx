@@ -3,11 +3,16 @@
 import { useState } from 'react'
 import { Sidebar } from '@/components/user/Sidebar'
 
+import { usePathname } from 'next/navigation'
+
 export default function UserLayout({
+
   children,
 }: {
   children: React.ReactNode
 }) {
+    const pathname = usePathname()
+   const isLoginPage =  pathname === '/user/login'
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -16,7 +21,7 @@ export default function UserLayout({
         className={`relative transition-all duration-300 ease-in-out        
         overflow-hidden`}
       >
-        <Sidebar/>
+        {!isLoginPage&&<Sidebar/>}
       </div>
 
       {/* Main Content */}

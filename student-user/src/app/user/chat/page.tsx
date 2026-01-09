@@ -177,16 +177,6 @@ export default function UserChatPage() {
                   </p>
                 </div>
               </div>
-
-              <div className="pt-4 border-t border-gray-200">
-                <Button
-                  variant="outline"
-                  onClick={clearChatHistory}
-                  className="w-full hover:cursor-pointer"
-                >
-                  Clear Chat History
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -225,15 +215,7 @@ export default function UserChatPage() {
                         </div>
                       </div>
 
-                      <Button
-                        variant="outline"
-                        onClick={clearChatHistory}
-                        className="hover:cursor-pointer"
-                        size="sm"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Clear
-                      </Button>
+                      
                     </div>
                   </div>
 

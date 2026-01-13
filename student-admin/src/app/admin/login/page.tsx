@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
+import { signInWithGoogle } from '@/lib/auth'
+
+
+  
 
 /* ---------- Local UI Components ---------- */
 
@@ -45,6 +49,11 @@ export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+
+    const handleLogin = async () => {
+    await signInWithGoogle()
+    router.push('/admin/dashboard')
+  }
 
   const router = useRouter()
   const { addToast, ToastContainer } = useToast()
@@ -121,6 +130,9 @@ export default function LoginPage() {
                 disabled={loading}
               >
                 {loading ? 'Signing in...' : 'Sign In'}
+              </Button>
+               <Button onClick={handleLogin}>
+                Sign in with Google
               </Button>
             </form>
           </CardContent>

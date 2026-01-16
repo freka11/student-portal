@@ -169,12 +169,12 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <HelpCircle className="h-5 w-5" />
-          {isNewQuestions ? 'Create Questions' : 'Update Questions'}
+          {isNewQuestions ? 'Create Question' : 'Update Question'}
         </CardTitle>
         <CardDescription>
           {isNewQuestions 
-            ? 'Add discussion questions for today' 
-            : 'Edit today\'s questions'
+            ? 'Add discussion question for today' 
+            : 'Edit today\'s question'
           }
         </CardDescription>
       </CardHeader>
@@ -182,7 +182,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
         {questions.length === 0 ? (
           <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
             <HelpCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No questions added yet</p>
+            <p className="text-gray-500 mb-4">No question added yet</p>
             <Button 
               onClick={addQuestion}
               variant="outline"
@@ -199,7 +199,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
                 <div key={q.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-medium text-gray-700">
-                      Question {index + 1}
+                      Question
                     </h4>
                     <Button
                       onClick={() => removeQuestion(q.id)}

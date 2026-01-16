@@ -198,14 +198,14 @@ useEffect(() => {
       
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-black">Questions of the Day</h1>
-          <p className="text-black mt-1 sm:mt-2 text-sm sm:text-base">Manage discussion questions for students</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-black">Question of the Day</h1>
+          <p className="text-black mt-1 sm:mt-2 text-sm sm:text-base">Manage discussion question for students</p>
         </div>
         <Button
           onClick={handleOpenModal}
           className="bg-purple-500 hover:bg-purple-700 text-white w-full sm:w-auto"
         >
-          + Add Questions
+          + Add Question
         </Button>
       </div>
 
@@ -214,7 +214,7 @@ useEffect(() => {
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-3 sm:mb-4">
               <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-              <span className="text-sm sm:text-base font-medium text-purple-900">Today's Question</span>
+              <span className="text-sm sm:text-base font-medium text-purple-900">Question</span>
             </div>
             <div className="space-y-3 sm:space-y-4">
               {currentQuestions.map((q, index) => (
@@ -224,7 +224,7 @@ useEffect(() => {
                   
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 sm:mb-3 gap-2">
-                    <span className="text-sm sm:text-base font-medium text-purple-900">Question {index + 1}</span>
+                    <span className="text-sm sm:text-base font-medium text-purple-900">Question</span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                       q.status === 'published' 
                         ? 'bg-green-100 text-green-800' 
@@ -257,7 +257,7 @@ useEffect(() => {
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title="Manage Questions of the Day"
+        title="Manage Question of the Day"
         className="max-w-4xl w-full mx-4"
       >
         <QuestionEditor onQuestionSaved={handleQuestionsSaved} />

@@ -24,7 +24,7 @@ interface AdminUser {
 const navigation = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { name: 'Thought', href: '/admin/thought', icon: Lightbulb },
-  { name: 'Questions', href: '/admin/question', icon: HelpCircle },
+  { name: 'Question', href: '/admin/question', icon: HelpCircle },
   { name: 'Chat', href: '/admin/chat', icon: MessageSquare },
 ]
 

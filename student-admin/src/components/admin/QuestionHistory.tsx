@@ -150,7 +150,7 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search questions, status, admin, or date..."
+              placeholder="Search question, status, admin, or date..."
               className="w-full pl-9 pr-10 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
             {searchTerm.trim() && (
@@ -175,7 +175,7 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
             </h3>
             <p className="text-gray-500">
               {questionHistory.length === 0
-                ? 'Questions will appear here once they are created.'
+                ? 'Question will appear here once they are created.'
                 : 'Try a different search term.'}
             </p>
           </div>

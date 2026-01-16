@@ -9,17 +9,17 @@ import { Lightbulb, HelpCircle, MessageSquare, FileText, CheckCircle, Send, X, C
 
 interface Thought {
   id: string
-  text: string
-  publishDate: string
-  createdBy: string
+  content: string
+  date: string
+  adminName: string
   adminId: string
 }
 
 interface Question {
   id: string
-  text: string
-  publishDate: string
-  createdBy: string
+  question: string
+  date: string
+  adminName: string
   adminId: string
   status: 'published' | 'draft'
 }
@@ -50,13 +50,13 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
   const { addToast } = useToast()
 
   useEffect(() => {
-    const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
+    const dateKey = question.date || new Date().toISOString().split('T')[0]
     const stored = localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
     setExistingAnswer(stored)
-  }, [question.id, question.publishDate])
+  }, [question.id, question.date])
 
   const handleSubmit = async () => {
-    const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
+    const dateKey = question.date || new Date().toISOString().split('T')[0]
     const currentlyStored = localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
 
     if (existingAnswer || currentlyStored) {
@@ -84,7 +84,7 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
       const answers = JSON.parse(localStorage.getItem('userAnswers') || '[]')
       answers.unshift({
         date: dateKey,
-        question: question.text,
+        question: question.question,
         answer: answer,
         timestamp: new Date().toISOString()
       })
@@ -162,7 +162,7 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
   )
 }
 
-export default function SimpleDashboard() {
+export default function UserDashboard() {
   const [dailyContent, setDailyContent] = useState<DailyContent>({
     thought: null,
     questions: []
@@ -183,19 +183,19 @@ export default function SimpleDashboard() {
         // Load thoughts from API
         const thoughtsResponse = await fetch('/api/thoughts')
         const thoughtsData = await thoughtsResponse.json()
-        const todayThought = thoughtsData.find((thought: Thought) => thought.publishDate === today)
+        const todayThought = thoughtsData.find((thought: Thought) => thought.date === today)
         
         // Load questions from API
         const questionsResponse = await fetch('/api/questions')
         const questionsData = await questionsResponse.json()
-        const todayQuestions = questionsData.filter((q: Question) => q.publishDate === today && q.status === 'published')
-        const latestQuestion = todayQuestions.length > 0 ? todayQuestions[todayQuestions.length - 1] : null
+        const todayQuestionsItem = questionsData.find((item: QuestionHistoryItem) => item.date === today)
+        const todayQuestions = todayQuestionsItem?.questions || []
         
         setDailyContent({
           thought: todayThought || null,
-          questions: latestQuestion ? [latestQuestion] : []
+          questions: todayQuestions
         })
-          
+        
         // Check if user has answered today
         const lastAnswerDate = localStorage.getItem('lastAnswerDate')
         const savedAnswers = JSON.parse(localStorage.getItem('answeredQuestions') || '[]')
@@ -218,7 +218,7 @@ export default function SimpleDashboard() {
   }, [])
 
   const getLocalAnswerForQuestion = (question: Question) => {
-    const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
+    const dateKey = question.date || new Date().toISOString().split('T')[0]
     return localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
   }
 
@@ -259,6 +259,7 @@ export default function SimpleDashboard() {
       changeType: 'positive'
     }
   ]
+
 
   return (
     <div className="p-6">
@@ -307,7 +308,7 @@ export default function SimpleDashboard() {
               </div>
             ) : dailyContent.thought ? (
               <p className="text-lg text-black italic text-center">
-                "{dailyContent.thought.text}"
+                "{dailyContent.thought.content}"
               </p>
             ) : (
               <div className="text-center py-4">
@@ -321,13 +322,13 @@ export default function SimpleDashboard() {
       </Card>
 
       
-      {/* Question of the Day Section */}
+      {/* Question of Day Section */}
       <Card className="mb-8 bg-gradient-to-r from-purple-50 to-pink-50 ml-2 mr-2 hover:scale-103 transition-all duration-200 hover:shadow-lg ">
         <CardHeader>
           <div>
             <CardTitle className="flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-purple-600" />
-              Question of the Day
+              Questions of the Day
             </CardTitle>
             <CardDescription>Today's discussion prompts</CardDescription>
           </div>
@@ -339,8 +340,8 @@ export default function SimpleDashboard() {
                 <div className="h-4 bg-gray-200 rounded w-full"></div>
                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
               </div>
-            ) : dailyContent.questions.length > 0 ? (
-              dailyContent.questions.map((q: Question, index: number) => (
+            ) : dailyContent.questions.filter(q => q.status === 'published').length > 0 ? (
+              dailyContent.questions.filter(q => q.status === 'published').map((q, index) => (
                 (() => {
                   const savedAnswer = isQuestionAnswered(q) ? getLocalAnswerForQuestion(q) : ''
                   const isExpanded = expandedQuestions.has(q.id)
@@ -353,14 +354,14 @@ export default function SimpleDashboard() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-medium text-purple-900">Question of the Day</span>
+                        <span className="text-sm font-medium text-purple-900">Question {index + 1}</span>
                         {isQuestionAnswered(q) && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             ✓ Answered
                           </span>
                         )}
                       </div>
-                      <p className="text-black mb-3">{q.text}</p>
+                      <p className="text-black mb-3">{q.question}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-3">
@@ -395,7 +396,7 @@ export default function SimpleDashboard() {
                       <div>
                         <h4 className="text-sm font-medium text-black mb-2">Your Answer</h4>
                         {savedAnswer ? (
-                          <div className="border border-purple-300 rounded-lg p-3 bg-purple-100">
+                          <div className="border border-purple-100 rounded-lg p-3 bg-white">
                             <p className="text-gray-700 text-sm">{savedAnswer}</p>
                           </div>
                         ) : (
@@ -411,8 +412,8 @@ export default function SimpleDashboard() {
             ) : (
               <div className="text-center py-4">
                 <HelpCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-black font-medium mb-1">No Question Available</p>
-                <p className="text-sm text-black">Check back later for today's question!</p>
+                <p className="text-black font-medium mb-1">No Questions Available</p>
+                <p className="text-sm text-black">Check back later for today's questions!</p>
               </div>
             )}
           </div>
@@ -442,7 +443,7 @@ export default function SimpleDashboard() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-medium text-black mb-2">Question:</h3>
-                  <p className="text-black bg-gray-50 p-3 rounded-lg">{selectedQuestion.text}</p>
+                  <p className="text-black bg-gray-50 p-3 rounded-lg">{selectedQuestion.question}</p>
                 </div>
                 <AnswerModal 
                   question={selectedQuestion}

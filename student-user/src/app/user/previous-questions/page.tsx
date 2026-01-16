@@ -36,7 +36,7 @@ export default function PreviousQuestionsPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load questions history
+        // Load questions from API
         const questionsResponse = await fetch('/api/questions')
         const questionsData = await questionsResponse.json()
         
@@ -44,7 +44,27 @@ export default function PreviousQuestionsPage() {
         const answersResponse = await fetch('/api/answers')
         const answersData = await answersResponse.json()
         
-        setQuestionHistory(questionsData)
+        // Group questions by date for history view
+        const groupedByDate = questionsData.reduce((acc: any, question: any) => {
+          const date = question.publishDate || new Date().toISOString().split('T')[0]
+          if (!acc[date]) {
+            acc[date] = {
+              id: date,
+              date: date,
+              questions: [],
+              adminName: question.createdBy?.name || 'Admin',
+              adminId: question.createdBy?.uid || 'admin-123'
+            }
+          }
+          acc[date].questions.push({
+            id: question.id,
+            question: question.text,
+            status: question.status
+          })
+          return acc
+        }, {})
+        
+        setQuestionHistory(Object.values(groupedByDate))
         setStudentAnswers(answersData)
       } catch (error) {
         console.error('Failed to load data:', error)
@@ -104,7 +124,7 @@ export default function PreviousQuestionsPage() {
 
   return (
  
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-blue-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">

@@ -135,7 +135,7 @@ export default function AnswersPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-purple-50">
       <ToastContainer />
       
       <div className="mb-8">
@@ -144,10 +144,10 @@ export default function AnswersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 ">
+        <Card >
+          <CardContent className="p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between ">
               <div>
                 <p className="text-sm font-medium text-black">Total Answers</p>
                 <p className="text-2xl font-bold text-black mt-1">{stats.totalAnswers}</p>
@@ -160,7 +160,7 @@ export default function AnswersPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-black">This Week</p>
@@ -174,7 +174,7 @@ export default function AnswersPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-black">This Month</p>
@@ -189,6 +189,7 @@ export default function AnswersPage() {
       </div>
 
       {/* Search and Actions */}
+      <Card className='bg-white p-8'>
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -199,7 +200,7 @@ export default function AnswersPage() {
                 placeholder="Search answers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400"
               />
             </div>
             
@@ -233,7 +234,7 @@ export default function AnswersPage() {
           {displayedAnswers.map((answer, index) => (
             <Card 
               key={index} 
-              className="hover:shadow-md transition-shadow"
+              className="hover:shadow-lg transition-shadow"
               ref={index === displayedAnswers.length - 1 ? lastAnswerElementRef : null}
             >
               <CardHeader>
@@ -280,10 +281,11 @@ export default function AnswersPage() {
           )}
         </div>
       )}
+      </Card>
 
       {/* View Answer Modal */}
       {showViewModal && selectedAnswer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
           <Card className="max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <CardHeader>
               <CardTitle className="text-xl">{selectedAnswer.question}</CardTitle>

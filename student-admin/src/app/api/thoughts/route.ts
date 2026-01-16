@@ -1,16 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
+import { adminFirestore } from '@/lib/firebase-admin'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const filePath = path.join(process.cwd(), 'data', 'thoughts.json')
-    const fileContents = fs.readFileSync(filePath, 'utf8')
-    const thoughts = JSON.parse(fileContents)
+    const { searchParams } = new URL(request.url)
+    const dateFilter = searchParams.get('date')
     
-    return NextResponse.json(thoughts)
+    // Fetch thoughts from Firestore - simplified query
+    let thoughtsQuery = adminFirestore.collection('thoughts')
+    
+    if (dateFilter === 'all') {
+      // Get all thoughts for history - no filters
+      const snapshot = await thoughtsQuery.get()
+      const thoughts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      return NextResponse.json(thoughts)
+    } else {
+      // Get only today's thoughts - simplified query
+      const today = new Date().toISOString().split('T')[0]
+      const snapshot = await thoughtsQuery
+        .where('publishDate', '==', today)
+        .get()
+      const thoughts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      return NextResponse.json(thoughts)
+    }
   } catch (error) {
-    console.error('Error reading thoughts:', error)
+    console.error('Error fetching thoughts:', error)
     return NextResponse.json([], { status: 500 })
   }
 }
@@ -18,19 +32,20 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const newThoughtData = await request.json()
-    const filePath = path.join(process.cwd(), 'data', 'thoughts.json')
     
-    let existingThoughts = []
-    try {
-      const fileContents = fs.readFileSync(filePath, 'utf8')
-      existingThoughts = JSON.parse(fileContents)
-    } catch (error) {
-      existingThoughts = []
+    // Add thought to Firestore
+    const thoughtDoc = {
+      text: newThoughtData.thought,
+      status: 'published',
+      createdBy: {
+        uid: 'admin-123', // This should come from authenticated admin
+        name: 'Admin User' // This should come from authenticated admin
+      },
+      createdAt: new Date().toISOString(),
+      publishDate: new Date().toISOString().split('T')[0]
     }
     
-    existingThoughts.unshift(newThoughtData)
-    
-    fs.writeFileSync(filePath, JSON.stringify(existingThoughts, null, 2))
+    await adminFirestore.collection('thoughts').add(thoughtDoc)
     
     return NextResponse.json({ success: true, message: 'Thought saved successfully' })
   } catch (error) {
@@ -48,19 +63,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Thought ID is required' }, { status: 400 })
     }
     
-    const filePath = path.join(process.cwd(), 'data', 'thoughts.json')
-    
-    let existingThoughts = []
-    try {
-      const fileContents = fs.readFileSync(filePath, 'utf8')
-      existingThoughts = JSON.parse(fileContents)
-    } catch (error) {
-      existingThoughts = []
-    }
-    
-    const updatedThoughts = existingThoughts.filter((thought: any) => thought.id !== thoughtId)
-    
-    fs.writeFileSync(filePath, JSON.stringify(updatedThoughts, null, 2))
+    // Delete thought from Firestore
+    await adminFirestore.collection('thoughts').doc(thoughtId).delete()
     
     return NextResponse.json({ success: true, message: 'Thought deleted successfully' })
   } catch (error) {

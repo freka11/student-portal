@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
-import { signInWithGoogle } from '@/lib/auth'
 
 
   
@@ -50,11 +49,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
-    const handleLogin = async () => {
-    await signInWithGoogle()
-    router.push('/admin/dashboard')
-  }
-
+    
   const router = useRouter()
   const { addToast, ToastContainer } = useToast()
 
@@ -65,20 +60,59 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
+      // Convert username to email format for Firebase
+      const email = username.includes('@') ? username : `${username}@admin.com`
 
-      const data = await response.json()
+      // Use Firebase client-side authentication
+      const { signInWithEmailAndPassword } = await import('firebase/auth')
+      const { auth } = await import('@/lib/firebase-client')
+      
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password)
+        const token = await userCredential.user.getIdToken()
+        
+        // Create session via API
+        const sessionResponse = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
 
-      if (response.ok) {
-        localStorage.setItem('adminUser', JSON.stringify(data.user))
-        router.push('/admin/dashboard') 
-      } else {
-        addToast(data.message || 'Invalid credentials', 'error')
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json()
+          
+          // Store user data with role
+          const userData = {
+            id: userCredential.user.uid,
+            email: userCredential.user.email,
+            name: userCredential.user.displayName || username,
+            username: username,
+            role: sessionData.user?.role || 'admin',
+            permissions: sessionData.user?.permissions || []
+          }
+          
+          localStorage.setItem('adminUser', JSON.stringify(userData))
+          router.push('/admin/dashboard')
+        } else {
+          addToast('Failed to create session', 'error')
+        }
+        
+      } catch (firebaseError: any) {
+        console.error('Firebase auth error:', firebaseError)
+        
+        // Handle specific Firebase auth errors
+        if (firebaseError.code === 'auth/user-not-found') {
+          addToast('User not found', 'error')
+        } else if (firebaseError.code === 'auth/wrong-password') {
+          addToast('Invalid password', 'error')
+        } else if (firebaseError.code === 'auth/invalid-email') {
+          addToast('Invalid email format', 'error')
+        } else {
+          addToast('Authentication failed', 'error')
+        }
       }
+      
     } catch {
       addToast('An error occurred. Please try again.', 'error')
     } finally {
@@ -131,10 +165,7 @@ export default function LoginPage() {
               >
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
-               <Button onClick={handleLogin}>
-                Sign in with Google
-              </Button>
-            </form>
+                           </form>
           </CardContent>
         </Card>
       </div>

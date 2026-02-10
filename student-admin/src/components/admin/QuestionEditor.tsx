@@ -33,14 +33,34 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
   const [showPreview, setShowPreview] = useState(false)
   const [existingQuestions, setExistingQuestions] = useState<Question[]>([])
 
-  // Load existing questions (could be from localStorage or API)
+  // Load existing questions from API
   useEffect(() => {
-    const savedQuestions = localStorage.getItem('dailyQuestions')
-    if (savedQuestions) {
-      const parsed = JSON.parse(savedQuestions)
-      setExistingQuestions(parsed)
-      setQuestions(parsed)
+    const loadQuestions = async () => {
+      try {
+        const response = await fetch('/api/questions')
+        if (response.ok) {
+          const data = await response.json()
+          // API returns array of questions with 'text' field, map to 'question' field
+          const mappedQuestions = data.map((q: any) => ({
+            ...q,
+            question: q.text // Map text field to question field
+          }))
+          setExistingQuestions(mappedQuestions)
+          setQuestions(mappedQuestions)
+        }
+      } catch (error) {
+        console.error('Failed to load questions:', error)
+        // Fallback to localStorage
+        const savedQuestions = localStorage.getItem('dailyQuestions')
+        if (savedQuestions) {
+          const parsed = JSON.parse(savedQuestions)
+          setExistingQuestions(parsed)
+          setQuestions(parsed)
+        }
+      }
     }
+
+    loadQuestions()
   }, [])
 
   const createNewQuestionItem = (questions: Question[]): QuestionHistoryItem => {
@@ -57,12 +77,12 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
   const addQuestion = () => {
     const today = new Date()
     const newQuestion: Question = {
-      id: Date.now().toString(),
+      id: `temp-${Date.now().toString()}`, // Use temporary ID for new questions
       question: '',
       date: today.toISOString().split('T')[0],
       adminName: 'Current Admin',
       adminId: 'admin01',
-      status: 'draft'
+      status: 'published' // Default to published since draft option is removed
     }
     setQuestions([...questions, newQuestion])
   }
@@ -77,45 +97,6 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
     ))
   }
 
-  const handleSave = async () => {
-    const validQuestions = questions.filter(q => q.question.trim())
-    
-    if (validQuestions.length === 0) return
-
-    setIsSaving(true)
-    
-    try {
-      // Create new question item with admin01
-      const newQuestionItem = createNewQuestionItem(validQuestions)
-      
-      // Save to JSON API
-      const response = await fetch('/api/questions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newQuestionItem),
-      })
-      
-      if (response.ok) {
-        // Also save to localStorage for current session
-        localStorage.setItem('dailyQuestions', JSON.stringify(validQuestions))
-        setExistingQuestions(validQuestions)
-        
-        // Emit event for other components
-        window.dispatchEvent(new CustomEvent('newQuestion', { detail: newQuestionItem }))
-        
-        onQuestionSaved(validQuestions)
-      } else {
-        throw new Error('Failed to save to server')
-      }
-    } catch (error) {
-      console.error('Failed to save questions:', error)
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
   const handleUpdate = async () => {
     const validQuestions = questions.filter(q => q.question.trim())
     
@@ -124,22 +105,53 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
     setIsSaving(true)
     
     try {
-      // Create question item with admin01
-      const newQuestionItem = createNewQuestionItem(validQuestions)
-      
-      // Save to JSON API (use POST for both new and updated questions)
-      const response = await fetch('/api/questions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newQuestionItem),
+      // Save each question individually to the API
+      const savePromises = validQuestions.map(async (question) => {
+        // Check if question exists (has an ID that's not a temporary one)
+        const isExistingQuestion = existingQuestions.some(eq => eq.id === question.id && !question.id.startsWith('temp-'))
+        
+        let requestData: any = {
+          question: question.question,
+          status: 'published' // Always set to published since draft option is removed
+        }
+        
+        console.log('Saving question data:', requestData)
+        
+        const url = `/api/questions`
+        const method = isExistingQuestion ? 'PUT' : 'POST'
+        
+        if (isExistingQuestion) {
+          // For existing questions, include the ID in the request body for PUT
+          requestData.id = question.id
+        }
+        
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+        })
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('API response error:', errorText)
+          throw new Error(`API error: ${response.status} - ${errorText}`)
+        }
+        
+        return response
       })
       
-      if (response.ok) {
+      const responses = await Promise.all(savePromises)
+      
+      // Check if all saves were successful
+      if (responses.every(response => response.ok)) {
         // Also save to localStorage for current session
         localStorage.setItem('dailyQuestions', JSON.stringify(validQuestions))
         setExistingQuestions(validQuestions)
+        
+        // Create question item for event/callback
+        const newQuestionItem = createNewQuestionItem(validQuestions)
         
         // Emit event for other components
         window.dispatchEvent(new CustomEvent('newQuestion', { detail: newQuestionItem }))
@@ -162,27 +174,22 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
     day: 'numeric'
   })
 
-  const isNewQuestions = existingQuestions.length === 0
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <HelpCircle className="h-5 w-5" />
-          {isNewQuestions ? 'Create Questions' : 'Update Questions'}
+          Manage Questions
         </CardTitle>
         <CardDescription>
-          {isNewQuestions 
-            ? 'Add discussion questions for today' 
-            : 'Edit today\'s questions'
-          }
+          Add discussion question for today
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {questions.length === 0 ? (
           <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
             <HelpCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No questions added yet</p>
+            <p className="text-gray-500 mb-4">No question added yet</p>
             <Button 
               onClick={addQuestion}
               variant="outline"
@@ -220,65 +227,36 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
                         placeholder="Enter your question here..."
                         value={q.question}
                         onChange={(e) => updateQuestion(q.id, 'question', e.target.value)}
-                        className="min-h-[80px]"
+                        className="min-h-20"
                       />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-black mb-2">
-                        Status
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center">
-                          <input
-                            type="radio"
-                            value="draft"
-                            checked={q.status === 'draft'}
-                            onChange={(e) => updateQuestion(q.id, 'status', e.target.value as 'draft')}
-                            className="mr-2"
-                          />
-                          <span className="text-sm">Draft</span>
-                        </label>
-                        <label className="flex items-center">
-                          <input
-                            type="radio"
-                            value="published"
-                            checked={q.status === 'published'}
-                            onChange={(e) => updateQuestion(q.id, 'status', e.target.value as 'published')}
-                            className="mr-2"
-                          />
-                          <span className="text-sm">Published</span>
-                        </label>
-                      </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+            
+            {/* Add Question Button */}
+            <Button 
+              onClick={addQuestion}
+              variant="outline"
+              className="flex items-center gap-2 w-full"
+            >
+              <Plus className="h-4 w-4" />
+              Add Another Question
+            </Button>
           </>
         )}
         
         {questions.length > 0 && (
           <div className="flex gap-3 pt-4 border-t">
-            {isNewQuestions ? (
-              <Button 
-                onClick={handleSave} 
-                disabled={isSaving || questions.filter(q => q.question.trim()).length === 0}
-                className="flex items-center gap-2"
-              >
-                <Save className="h-4 w-4" />
-                {isSaving ? 'Saving...' : 'Save Question'}
-              </Button>
-            ) : (
-              <Button 
-                onClick={handleUpdate} 
-                disabled={isSaving || questions.filter(q => q.question.trim()).length === 0}
-                className="flex items-center gap-2"
-              >
-                <Save className="h-4 w-4" />
-                {isSaving ? 'Updating...' : 'Save'}
-              </Button>
-            )}
+            <Button 
+              onClick={handleUpdate} 
+              disabled={isSaving || questions.filter(q => q.question.trim()).length === 0}
+              className="flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {isSaving ? 'Saving...' : 'Save Questions'}
+            </Button>
             
             <Button 
               variant="outline" 
@@ -297,7 +275,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
             <h4 className="text-sm font-medium text-gray-700 mb-2">Preview</h4>
             <div className="space-y-3">
               {questions.filter(q => q.question.trim()).map((q, index) => (
-                <div key={q.id} className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                <div key={q.id} className="bg-linear-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <HelpCircle className="h-4 w-4 text-purple-600" />

@@ -12,44 +12,6 @@ interface ThoughtHistoryItem {
   adminId: string
 }
 
-// Mock data for thought history
-const initialMockThoughtHistory: ThoughtHistoryItem[] = [
-  {
-    id: '1',
-    content: 'Success is not final, failure is not fatal: it is the courage to continue that counts.',
-    date: '2024-12-26',
-    adminName: 'John Doe',
-    adminId: 'admin_001'
-  },
-  {
-    id: '2',
-    content: 'The only way to do great work is to love what you do. If you haven\'t found it yet, keep looking.',
-    date: '2024-12-25',
-    adminName: 'Jane Smith',
-    adminId: 'admin_002'
-  },
-  {
-    id: '3',
-    content: 'Innovation distinguishes between a leader and a follower.',
-    date: '2024-12-24',
-    adminName: 'Mike Johnson',
-    adminId: 'admin_003'
-  },
-  {
-    id: '4',
-    content: 'The future belongs to those who believe in the beauty of their dreams.',
-    date: '2024-12-23',
-    adminName: 'Sarah Williams',
-    adminId: 'admin_004'
-  },
-  {
-    id: '5',
-    content: 'It is during our darkest moments that we must focus to see the light.',
-    date: '2024-12-22',
-    adminName: 'David Brown',
-    adminId: 'admin_005'
-  }
-]
 
 interface ThoughtHistoryProps {
   className?: string
@@ -57,7 +19,41 @@ interface ThoughtHistoryProps {
 }
 
 export function ThoughtHistory({ className, onThoughtAdded }: ThoughtHistoryProps) {
-  const [thoughts, setThoughts] = useState<ThoughtHistoryItem[]>(initialMockThoughtHistory)
+  const [thoughts, setThoughts] = useState<ThoughtHistoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Load thoughts from API
+  useEffect(() => {
+    const loadThoughts = async () => {
+      try {
+        const res = await fetch('/api/thoughts?date=all')
+        if (res.ok) {
+          const apiThoughts: any[] = await res.json()
+          
+          // Map API data structure to frontend interface
+          const mappedThoughts = apiThoughts.map(thought => ({
+            id: thought.id,
+            content: thought.text,
+            date: thought.publishDate,
+            adminName: thought.createdBy?.name || 'Admin',
+            adminId: thought.createdBy?.uid || 'admin'
+          }))
+          const sortedByLatest = mappedThoughts.sort(
+          (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+          setThoughts(sortedByLatest) // Show newest first
+        }
+      } catch (error) {
+        console.error('Failed to load thoughts:', error)
+        // Fallback to mock data if API fails
+  
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadThoughts()
+  }, [])
 
   // Listen for new thoughts
   useEffect(() => {
@@ -94,8 +90,15 @@ export function ThoughtHistory({ className, onThoughtAdded }: ThoughtHistoryProp
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3 h-fill overflow-y-auto">
-          {thoughts.map((thought) => (
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-500">Loading thoughts...</span>
+          </div>
+        ) : (
+          <div className="space-y-3 h-fill overflow-y-auto">
+            
+            {thoughts.map((thought) => (
             <div
               key={thought.id}
               className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-transform hover:scale-103 m-6"
@@ -119,6 +122,7 @@ export function ThoughtHistory({ className, onThoughtAdded }: ThoughtHistoryProp
             </div>
           ))}
         </div>
+        )}
       </CardContent>
     </Card>
   )

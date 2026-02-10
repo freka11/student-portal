@@ -52,7 +52,38 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
         const answersResponse = await fetch('/api/answers')
         const answersData = await answersResponse.json()
         
-        setQuestionHistory(questionsData)
+        // Group individual questions by date to match QuestionHistoryItem structure
+        const groupedByDate = questionsData.reduce((acc: any[], question: any) => {
+          const date = question.publishDate || question.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]
+          const existingGroup = acc.find(group => group.date === date)
+          
+          const mappedQuestion = {
+            ...question,
+            question: question.text, // Map text field to question field
+            adminName: question.createdBy?.name || 'Admin User',
+            adminId: question.createdBy?.uid || 'admin-123'
+          }
+          
+          if (existingGroup) {
+            existingGroup.questions.push(mappedQuestion)
+          } else {
+            acc.push({
+              id: `group-${date}`,
+              date,
+              questions: [mappedQuestion],
+              adminName: question.createdBy?.name || 'Admin User',
+              adminId: question.createdBy?.uid || 'admin-123'
+            })
+          }
+          
+          return acc
+        }, [])
+
+        const sortedByLatest = groupedByDate.sort(
+          (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+        
+        setQuestionHistory(sortedByLatest)  
         setStudentAnswers(answersData)
       } catch (error) {
         console.error('Failed to load data:', error)
@@ -150,7 +181,7 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search questions, status, admin, or date..."
+              placeholder="Search question, status, admin, or date..."
               className="w-full pl-9 pr-10 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
             {searchTerm.trim() && (
@@ -175,14 +206,14 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
             </h3>
             <p className="text-gray-500">
               {questionHistory.length === 0
-                ? 'Questions will appear here once they are created.'
+                ? 'Question will appear here once they are created.'
                 : 'Try a different search term.'}
             </p>
           </div>
         ) : (
           <div className="space-y-6 ">
             {filteredHistory.map((historyItem) => (
-              <div key={historyItem.id} className="border border-gray-200 rounded-lg p-4 hover:scale-102 transition-transform duration-200">
+              <div key={historyItem.id} className="border border-gray-200 rounded-lg p-4 hover:scale-101 transition-transform duration-00">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-blue-600" />

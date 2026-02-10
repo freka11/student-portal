@@ -28,25 +28,129 @@ export default function AnswersPage() {
   const lastAnswerRef = useRef<HTMLDivElement | null>(null)
   const { addToast, ToastContainer } = useToast()
 
-  useEffect(() => {
-    // Load answers from localStorage or use mock data
-    const savedAnswers = JSON.parse(localStorage.getItem('userAnswers') || '[]')
-    
-    // Generate more mock answers for testing infinite scroll
-    if (savedAnswers.length === 0) {
-      const mockAnswers = Array.from({ length: 20 }, (_, index) => ({
-        date: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        question: `Question ${index + 1}: What is the most surprising thing you learned this week, and how did it change your perspective?`,
-        answer: `Answer ${index + 1}: I was surprised to learn that React hooks can only be called at top level of a function component. This completely changed my understanding of how React manages state and effects, and explained why I was getting so many errors before! This is answer number ${index + 1} to test infinite scroll functionality.`,
-        timestamp: new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString()
-      }))
-      setAnswers(mockAnswers)
-      setFilteredAnswers(mockAnswers)
-    } else {
-      setAnswers(savedAnswers)
-      setFilteredAnswers(savedAnswers)
+  const loadAnswers = async () => {
+    try {
+      // Load answers from Firebase API
+      const answersResponse = await fetch('/api/answers')
+      if (answersResponse.ok) {
+        const answersData = await answersResponse.json()
+        console.log('All answers data:', answersData)
+        
+        if (answersData.length === 0) {
+          console.log('No answers found in database')
+          setAnswers([])
+          setFilteredAnswers([])
+          return
+        }
+        
+        // For debugging: Show all answers to see if data exists
+        // In a real app, you would filter by current student's ID
+        const currentStudentId = 'current_student' // This should come from auth
+        const studentAnswers = answersData.filter((answer: any) => {
+          // Show all answers for debugging, comment this for production
+          return true; //answer.studentId === currentStudentId || !answer.studentId
+        })
+        
+        console.log('Filtered answers for current student:', studentAnswers)
+        
+        if (studentAnswers.length === 0) {
+          console.log('No answers found for current student')
+          setAnswers([])
+          setFilteredAnswers([])
+          return
+        }
+        
+        // Load all questions to get question text (only once)
+        const questionsResponse = await fetch('/api/questions?date=all')
+        let questions = []
+        if (questionsResponse.ok) {
+          questions = await questionsResponse.json()
+          console.log('Questions loaded:', questions.length)
+        }
+        
+        // Transform and enrich answers data
+        const userAnswers: UserAnswer[] = studentAnswers.map((answer: any) => {
+          const question = questions.find((q: any) => q.id === answer.questionId)
+          return {
+            date: answer.submittedAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+            question: question?.text || question?.question || `Question ID: ${answer.questionId}`,
+            answer: answer.answer,
+            timestamp: answer.submittedAt
+          }
+        })
+        
+        console.log('Transformed user answers:', userAnswers)
+        
+        // Sort by date (newest first)
+        userAnswers.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        
+        setAnswers(userAnswers)
+        setFilteredAnswers(userAnswers)
+      } else {
+        console.log('Failed to load answers, status:', answersResponse.status)
+        setAnswers([])
+        setFilteredAnswers([])
+      }
+    } catch (error) {
+      console.error('Failed to load answers:', error)
+      setAnswers([])
+      setFilteredAnswers([])
     }
+  }
+
+  useEffect(() => {
+    loadAnswers()
   }, [])
+
+  const submitTestAnswer = async () => {
+    try {
+      console.log('Submitting test answer...')
+      
+      // First get a question ID to use
+      const questionsResponse = await fetch('/api/questions?date=all')
+      if (questionsResponse.ok) {
+        const questions = await questionsResponse.json()
+        if (questions.length > 0) {
+          const testQuestion = questions[0]
+          
+          const testData = {
+            studentId: 'test_student_001',
+            studentName: 'Test Student',
+            questionId: testQuestion.id,
+            answer: `This is a test answer submitted at ${new Date().toLocaleString()} to verify the API works correctly.`
+          }
+          
+          const response = await fetch('/api/answers', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(testData)
+          })
+          
+          if (response.ok) {
+            const result = await response.json()
+            console.log('✅ Test answer submitted:', result)
+            alert('Test answer submitted successfully! Refreshing answers...')
+            
+            // Reload answers
+            loadAnswers()
+          } else {
+            const error = await response.text()
+            console.error('❌ Failed to submit test answer:', error)
+            alert(`Failed to submit test answer: ${error}`)
+          }
+        } else {
+          alert('No questions found to test with. Please create a question first.')
+        }
+      } else {
+        alert('Failed to load questions for testing')
+      }
+    } catch (error) {
+      console.error('Test submission error:', error)
+      alert('Failed to submit test answer')
+    }
+  }
 
   useEffect(() => {
     // Filter answers based on search query
@@ -135,7 +239,7 @@ export default function AnswersPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-purple-50">
       <ToastContainer />
       
       <div className="mb-8">
@@ -144,10 +248,10 @@ export default function AnswersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 ">
+        <Card >
+          <CardContent className="p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between ">
               <div>
                 <p className="text-sm font-medium text-black">Total Answers</p>
                 <p className="text-2xl font-bold text-black mt-1">{stats.totalAnswers}</p>
@@ -160,7 +264,7 @@ export default function AnswersPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-black">This Week</p>
@@ -174,7 +278,7 @@ export default function AnswersPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-black">This Month</p>
@@ -189,6 +293,7 @@ export default function AnswersPage() {
       </div>
 
       {/* Search and Actions */}
+      <Card className='bg-white p-8'>
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -199,13 +304,11 @@ export default function AnswersPage() {
                 placeholder="Search answers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple -400"
               />
             </div>
             
-            <div className="flex gap-3">
 
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -233,7 +336,7 @@ export default function AnswersPage() {
           {displayedAnswers.map((answer, index) => (
             <Card 
               key={index} 
-              className="hover:shadow-md transition-shadow"
+              className="hover:shadow-lg transition-shadow"
               ref={index === displayedAnswers.length - 1 ? lastAnswerElementRef : null}
             >
               <CardHeader>
@@ -280,10 +383,11 @@ export default function AnswersPage() {
           )}
         </div>
       )}
+      </Card>
 
       {/* View Answer Modal */}
       {showViewModal && selectedAnswer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
           <Card className="max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <CardHeader>
               <CardTitle className="text-xl">{selectedAnswer.question}</CardTitle>

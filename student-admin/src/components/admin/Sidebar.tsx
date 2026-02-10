@@ -24,10 +24,10 @@ interface AdminUser {
 const navigation = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { name: 'Thought', href: '/admin/thought', icon: Lightbulb },
-  { name: 'Questions', href: '/admin/question', icon: HelpCircle },
+  { name: 'Question', href: '/admin/question', icon: HelpCircle },
   { name: 'Chat', href: '/admin/chat', icon: MessageSquare },
 ]
-
+  const storedAdmin = localStorage.getItem('adminUser')
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
@@ -83,7 +83,8 @@ export function Sidebar() {
           <div className="flex items-center gap-2">
             <User className="h-5 w-5 text-gray-500" />
             <span className="text-lg text-black">
-              {admin?.username}
+              {admin?.name}
+             
             </span>
           </div>
 
@@ -103,6 +104,8 @@ export function Sidebar() {
             </h1>
             <p className="text-sm text-black mt-1">
               Management Dashboard
+              
+   
             </p>
           </div>
 

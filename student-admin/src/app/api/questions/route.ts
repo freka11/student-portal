@@ -1,27 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
+import { adminFirestore } from '@/lib/firebase-admin'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const dateFilter = searchParams.get('date')
-    const filePath = path.join(process.cwd(), 'data', 'questions.json')
-    const fileContents = fs.readFileSync(filePath, 'utf8')
-    const questions = JSON.parse(fileContents)
     
-    // If date=all, return all questions (for history)
+    // Fetch questions from Firestore - simplified query
+    let questionsQuery = adminFirestore.collection('questions')
+    
     if (dateFilter === 'all') {
+      // Get all questions for history - no filters
+      const snapshot = await questionsQuery.get()
+      const questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      return NextResponse.json(questions)
+    } else {
+      // Get only today's questions - simplified query
+      const today = new Date().toISOString().split('T')[0]
+      const snapshot = await questionsQuery
+        .where('publishDate', '==', today)
+        .get()
+      const questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       return NextResponse.json(questions)
     }
-    
-    // Default: return only today's questions
-    const today = new Date().toISOString().split('T')[0]
-    const todayQuestions = questions.filter((item: any) => item.date === today)
-    
-    return NextResponse.json(todayQuestions)
   } catch (error) {
-    console.error('Error reading questions:', error)
+    console.error('Error fetching questions:', error)
     return NextResponse.json([], { status: 500 })
   }
 }
@@ -29,23 +32,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const newQuestionData = await request.json()
-    const filePath = path.join(process.cwd(), 'data', 'questions.json')
     
-    // Read existing questions
-    let existingQuestions = []
-    try {
-      const fileContents = fs.readFileSync(filePath, 'utf8')
-      existingQuestions = JSON.parse(fileContents)
-    } catch (error) {
-      // File doesn't exist or is empty
-      existingQuestions = []
+    // Add question to Firestore with student audience
+    const questionData = {
+      text: newQuestionData.question,
+      status: newQuestionData.status || 'published', // Use status from frontend
+      createdBy: {
+        uid: 'admin-123', // This should come from authenticated admin
+        name: 'Admin User' // This should come from authenticated admin
+      },
+      createdAt: new Date().toISOString(),
+      publishDate: new Date().toISOString().split('T')[0]
     }
     
-    // Add new question to the beginning
-    existingQuestions.unshift(newQuestionData)
-    
-    // Write back to file
-    fs.writeFileSync(filePath, JSON.stringify(existingQuestions, null, 2))
+    await adminFirestore.collection('questions').add(questionData)
     
     return NextResponse.json({ success: true, message: 'Question saved successfully' })
   } catch (error) {
@@ -57,54 +57,40 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const updatedQuestionData = await request.json()
-    const filePath = path.join(process.cwd(), 'data', 'questions.json')
     
-    // Read existing questions
-    let questions = []
-    try {
-      const fileContents = fs.readFileSync(filePath, 'utf8')
-      questions = JSON.parse(fileContents)
-    } catch (error) {
-      // File doesn't exist, create new structure
-      questions = []
+    if (!updatedQuestionData.id) {
+      return NextResponse.json({ success: false, message: 'Question ID is required' }, { status: 400 })
     }
     
-    // Find and update the question
-    let updated = false
-    for (const historyItem of questions) {
-      for (let i = 0; i < historyItem.questions.length; i++) {
-        if (historyItem.questions[i].id === updatedQuestionData.id) {
-          historyItem.questions[i] = { ...historyItem.questions[i], ...updatedQuestionData }
-          updated = true
-          break
-        }
-      }
-      if (updated) break
-    }
+    // Update question in Firestore
+    await adminFirestore.collection('questions').doc(updatedQuestionData.id).update({
+      text: updatedQuestionData.question,
+      status: updatedQuestionData.status,
+      updatedAt: new Date().toISOString()
+    })
     
-    // If question not found, it might be a new question being edited before saving
-    // In this case, we should add it as a new question item
-    if (!updated) {
-      const today = new Date().toISOString().split('T')[0]
-      const newQuestionItem = {
-        id: Date.now().toString(),
-        date: today,
-        questions: [updatedQuestionData],
-        adminName: 'Current Admin',
-        adminId: 'admin01'
-      }
-      questions.unshift(newQuestionItem)
-      updated = true
-    }
-    
-    if (updated) {
-      fs.writeFileSync(filePath, JSON.stringify(questions, null, 2))
-      return NextResponse.json({ success: true, message: 'Question updated successfully' })
-    } else {
-      return NextResponse.json({ success: false, message: 'Failed to update question' }, { status: 500 })
-    }
+    return NextResponse.json({ success: true, message: 'Question updated successfully' })
   } catch (error) {
     console.error('Error updating question:', error)
     return NextResponse.json({ success: false, message: 'Failed to update question' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const questionId = searchParams.get('id')
+    
+    if (!questionId) {
+      return NextResponse.json({ success: false, message: 'Question ID is required' }, { status: 400 })
+    }
+    
+    // Delete question from Firestore
+    await adminFirestore.collection('questions').doc(questionId).delete()
+    
+    return NextResponse.json({ success: true, message: 'Question deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting question:', error)
+    return NextResponse.json({ success: false, message: 'Failed to delete question' }, { status: 500 })
   }
 }

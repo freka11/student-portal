@@ -1,26 +1,30 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { Textarea } from '@/components/admin/Textarea'
 import { useToast } from '@/components/admin/Toast'
 import { Lightbulb, HelpCircle, MessageSquare, FileText, CheckCircle, Send, X, ChevronDown, ChevronUp } from 'lucide-react'
 
+
+
+
+
+
 interface Thought {
   id: string
-  content: string
-  date: string
-  adminName: string
+  text: string
+  publishDate: string
+  createdBy: string
   adminId: string
 }
 
 interface Question {
   id: string
-  question: string
-  date: string
-  adminName: string
+  text: string
+  publishDate: string
+  createdBy: string
   adminId: string
   status: 'published' | 'draft'
 }
@@ -44,27 +48,23 @@ interface AnswerModalProps {
   onAnswerSubmitted: (questionId: string) => void
 }
 
+
 function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps) {
   const [answer, setAnswer] = useState('')
   const [existingAnswer, setExistingAnswer] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { addToast } = useToast()
+  const { addToast } = useToast()  
+
+
+
 
   useEffect(() => {
-    const dateKey = question.date || new Date().toISOString().split('T')[0]
+    const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
     const stored = localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
     setExistingAnswer(stored)
-  }, [question.id, question.date])
+  }, [question.id, question.publishDate])
 
   const handleSubmit = async () => {
-    const dateKey = question.date || new Date().toISOString().split('T')[0]
-    const currentlyStored = localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
-
-    if (existingAnswer || currentlyStored) {
-      addToast('You already submitted an answer for this question.', 'error')
-      return
-    }
-
     if (!answer.trim()) {
       addToast('Please enter your answer before submitting', 'error')
       return
@@ -78,31 +78,47 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
     setIsSubmitting(true)
     
     try {
-      // Save answer to localStorage
-      localStorage.setItem(`answer_${question.id}_${dateKey}`, answer)
-      
-      // Save to answers history
-      const answers = JSON.parse(localStorage.getItem('userAnswers') || '[]')
-      answers.unshift({
-        date: dateKey,
-        question: question.question,
-        answer: answer,
-        timestamp: new Date().toISOString()
+      // Submit answer to Firebase API
+      const response = await fetch('/api/answers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentId: name, // This should come from authentication
+          studentName: name, // This should come from authentication
+          questionId: question.id,
+          answer: answer.trim()
+        })
       })
-      localStorage.setItem('userAnswers', JSON.stringify(answers))
-      
-      // Update answered questions list
-      const answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions') || '[]')
-      if (!answeredQuestions.includes(question.id)) {
-        answeredQuestions.push(question.id)
-        localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions))
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Answer submitted:', result)
+        
+        // Save to localStorage for UI state
+        const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
+        localStorage.setItem(`answer_${question.id}_${dateKey}`, answer)
+        
+        // Update answered questions list
+        const answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions') || '[]')
+        if (!answeredQuestions.includes(question.id)) {
+          answeredQuestions.push(question.id)
+          localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions))
+        }
+        
+        localStorage.setItem('lastAnswerDate', dateKey)
+        
+        onAnswerSubmitted(question.id)
+        setAnswer('')
+        addToast('Answer submitted successfully!', 'success')
+      } else {
+        const errorData = await response.json()
+        console.error('Submit failed:', errorData)
+        addToast(errorData.message || 'Failed to submit answer', 'error')
       }
-      
-      localStorage.setItem('lastAnswerDate', dateKey)
-      
-      onAnswerSubmitted(question.id)
-      setAnswer('')
     } catch (error) {
+      console.error('Submit error:', error)
       addToast('Failed to submit answer', 'error')
     } finally {
       setIsSubmitting(false)
@@ -111,6 +127,7 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
 
   return (
     <div className="space-y-4">
+      
       {existingAnswer ? (
         <div>
           <label className="block text-sm font-medium text-black mb-2">Your Answer</label>
@@ -156,6 +173,7 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
           disabled={isSubmitting}
           className="hover:cursor-pointer"
         >
+          
           Cancel
         </Button>
       </div>
@@ -163,7 +181,7 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
   )
 }
 
-export default function UserDashboard() {
+export default function SimpleDashboard() {
   const [dailyContent, setDailyContent] = useState<DailyContent>({
     thought: null,
     questions: []
@@ -184,19 +202,19 @@ export default function UserDashboard() {
         // Load thoughts from API
         const thoughtsResponse = await fetch('/api/thoughts')
         const thoughtsData = await thoughtsResponse.json()
-        const todayThought = thoughtsData.find((thought: Thought) => thought.date === today)
+        const todayThought = thoughtsData.find((thought: Thought) => thought.publishDate === today)
         
         // Load questions from API
         const questionsResponse = await fetch('/api/questions')
         const questionsData = await questionsResponse.json()
-        const todayQuestionsItem = questionsData.find((item: QuestionHistoryItem) => item.date === today)
-        const todayQuestions = todayQuestionsItem?.questions || []
+        // Show ALL published questions for today (like admin version)
+        const todayQuestions = questionsData.filter((q: Question) => q.publishDate === today && q.status === 'published')
         
         setDailyContent({
           thought: todayThought || null,
           questions: todayQuestions
         })
-        
+          
         // Check if user has answered today
         const lastAnswerDate = localStorage.getItem('lastAnswerDate')
         const savedAnswers = JSON.parse(localStorage.getItem('answeredQuestions') || '[]')
@@ -218,9 +236,8 @@ export default function UserDashboard() {
     loadTodayContent()
   }, [])
 
-
   const getLocalAnswerForQuestion = (question: Question) => {
-    const dateKey = question.date || new Date().toISOString().split('T')[0]
+    const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
     return localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
   }
 
@@ -261,12 +278,11 @@ export default function UserDashboard() {
       changeType: 'positive'
     }
   ]
-
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-black">Student Dashboard</h1>
-        <p className="text-black mt-2">Welcome back! Here's your learning progress</p>
+        <h1 className="text-3xl font-bold text-black">Student Dashboard </h1>
+        <p className="text-black mt-2">Welcome back! Here's your learning progress </p>
       </div>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 ">
@@ -290,14 +306,13 @@ export default function UserDashboard() {
 
       <ToastContainer />
       
-      
 
-      {/* Thought of the Day Section */}
+      {/* Thought of Day Section */}
       <Card className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 hover:scale-103 transition-all duration-200 ml-2 mr-2 hover:shadow-lg  ">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Lightbulb className="h-6 w-6 text-yellow-500" />
-            Thought of the Day
+            Thought of Day
           </CardTitle>
           <CardDescription>Your daily inspiration</CardDescription>
         </CardHeader>
@@ -310,7 +325,7 @@ export default function UserDashboard() {
               </div>
             ) : dailyContent.thought ? (
               <p className="text-lg text-black italic text-center">
-                "{dailyContent.thought.content}"
+                "{dailyContent.thought.text}"
               </p>
             ) : (
               <div className="text-center py-4">
@@ -325,7 +340,7 @@ export default function UserDashboard() {
 
       
       {/* Question of the Day Section */}
-      <Card className="mb-8 bg-linear-to-r from-purple-50 to-pink-50 ml-2 mr-2 hover:scale-103 transction-all  duration-200 hover:shadow-lg ">
+      <Card className="mb-8 bg-gradient-to-r from-purple-50 to-pink-50 ml-2 mr-2 hover:scale-103 transition-all duration-200 hover:shadow-lg ">
         <CardHeader>
           <div>
             <CardTitle className="flex items-center gap-2">
@@ -342,8 +357,8 @@ export default function UserDashboard() {
                 <div className="h-4 bg-gray-200 rounded w-full"></div>
                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
               </div>
-            ) : dailyContent.questions.filter(q => q.status === 'published').length > 0 ? (
-              dailyContent.questions.filter(q => q.status === 'published').map((q, index) => (
+            ) : dailyContent.questions.length > 0 ? (
+              dailyContent.questions.map((q: Question, index: number) => (
                 (() => {
                   const savedAnswer = isQuestionAnswered(q) ? getLocalAnswerForQuestion(q) : ''
                   const isExpanded = expandedQuestions.has(q.id)
@@ -352,7 +367,7 @@ export default function UserDashboard() {
                 <div 
                 key={q.id} 
 
-                className="p-4 rounded-lg border border-purple-200 bg-linear-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out   hover:scale-101 ">
+                className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out   hover:scale-101 m-2">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -363,7 +378,7 @@ export default function UserDashboard() {
                           </span>
                         )}
                       </div>
-                      <p className="text-black mb-3">{q.question}</p>
+                      <p className="text-black mb-3">{q.text}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-3">
@@ -373,11 +388,11 @@ export default function UserDashboard() {
                       className="inline-flex items-center gap-2 text-sm text-purple-900 hover:text-purple-950"
                     >
                       {isExpanded ? (
-                        <ChevronUp className="h-4 w-4 cursor-pointer" />
+                        <ChevronUp className="h-6 w-6 cursor-pointer" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 cursor-pointer" />
+                        <ChevronDown className="h-6 w-6 cursor-pointer" />
                       )}
-                      Details
+                   
                     </button>
 
                     <Button 
@@ -386,7 +401,7 @@ export default function UserDashboard() {
                         setShowAnswerModal(true)
                       }}
                       disabled={isQuestionAnswered(q)}
-                      className="hover:cursor-pointer bg-linear-to-r from-pink-200 to-purple-300 hover:from-pink-300 hover:to-purple-400"
+                      className="hover:cursor-pointer bg-gradient-to-r  from-pink-500 to-purple-600 hover:from-purple-500 hover:to-pink-600"
                       size="sm"
                     >
                       {isQuestionAnswered(q) ? 'Already Answered' : 'Answer Question'}
@@ -398,7 +413,7 @@ export default function UserDashboard() {
                       <div>
                         <h4 className="text-sm font-medium text-black mb-2">Your Answer</h4>
                         {savedAnswer ? (
-                          <div className="border border-purple-100 rounded-lg p-3 bg-white">
+                          <div className="border border-purple-300 rounded-lg p-3 bg-purple-100">
                             <p className="text-gray-700 text-sm">{savedAnswer}</p>
                           </div>
                         ) : (
@@ -445,7 +460,7 @@ export default function UserDashboard() {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-medium text-black mb-2">Question:</h3>
-                  <p className="text-black bg-gray-50 p-3 rounded-lg">{selectedQuestion.question}</p>
+                  <p className="text-black bg-gray-50 p-3 rounded-lg">{selectedQuestion.text}</p>
                 </div>
                 <AnswerModal 
                   question={selectedQuestion}

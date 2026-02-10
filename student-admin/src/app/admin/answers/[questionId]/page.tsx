@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
-import { Users, Calendar, User, ArrowLeft, HelpCircle, Search } from 'lucide-react'
+import { Users, Calendar, ArrowLeft, HelpCircle, Search } from 'lucide-react'
 import Link from 'next/link'
 
 interface StudentAnswer {
@@ -53,10 +53,12 @@ export default function AnswersByQuestionPage() {
         // Find the question details
         let foundQuestion: Question | null = null
         for (const historyItem of questionsData) {
-          const q = historyItem.questions.find((q: Question) => q.id === questionId)
-          if (q) {
-            foundQuestion = q
-            break
+          if (historyItem.questions && Array.isArray(historyItem.questions)) {
+            const q = historyItem.questions.find((q: Question) => q.id === questionId)
+            if (q) {
+              foundQuestion = q
+              break
+            }
           }
         }
         setQuestion(foundQuestion)
@@ -212,7 +214,6 @@ export default function AnswersByQuestionPage() {
                       </div>
                       <div>
                         <p className="text-sm sm:text-base font-medium text-gray-900">{answer.studentName}</p>
-                        <p className="text-xs sm:text-sm text-gray-500">ID: {answer.studentId}</p>
                       </div>
                     </div>
                     <div className="text-right sm:text-left">

@@ -56,20 +56,59 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
+      // Convert username to email format for Firebase
+      const email = username.includes('@') ? username : `${username}@student.com`
 
-      const data = await response.json()
+      // Use Firebase client-side authentication
+      const { signInWithEmailAndPassword } = await import('firebase/auth')
+      const { auth } = await import('@/lib/firebase-client')
+      
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password)
+        const token = await userCredential.user.getIdToken()
+        
+        // Create session via API
+        const sessionResponse = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
 
-      if (response.ok) {
-        localStorage.setItem('user', JSON.stringify(data.user))
-        router.push('/user/dashboard') 
-      } else {
-        addToast(data.message || 'Invalid credentials', 'error')
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json()
+          
+          // Store user data with role
+          const userData = {
+            id: userCredential.user.uid,
+            email: userCredential.user.email,
+            name: userCredential.user.displayName || username,
+            username: username,
+            role: sessionData.user?.role || 'student',
+            permissions: sessionData.user?.permissions || []
+          }
+          
+          localStorage.setItem('user', JSON.stringify(userData))
+          router.push('/user/dashboard')
+        } else {
+          addToast('Failed to create session', 'error')
+        }
+        
+      } catch (firebaseError: any) {
+        console.error('Firebase auth error:', firebaseError)
+        
+        // Handle specific Firebase auth errors
+        if (firebaseError.code === 'auth/user-not-found') {
+          addToast('User not found', 'error')
+        } else if (firebaseError.code === 'auth/wrong-password') {
+          addToast('Invalid password', 'error')
+        } else if (firebaseError.code === 'auth/invalid-email') {
+          addToast('Invalid email format', 'error')
+        } else {
+          addToast('Authentication failed', 'error')
+        }
       }
+      
     } catch {
       addToast('An error occurred. Please try again.', 'error')
     } finally {
@@ -99,7 +138,7 @@ export default function LoginPage() {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your username"
+                  placeholder="Enter your username (rahul or likhith)"
                 />
               </div>
 
@@ -111,7 +150,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Enter your password (rahul123 or likhith123)"
                 />
               </div>
 

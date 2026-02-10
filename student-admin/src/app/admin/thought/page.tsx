@@ -18,6 +18,7 @@ interface ThoughtHistoryItem {
   adminId: string
 }
 
+
 export default function ThoughtPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentThought, setCurrentThought] =
@@ -29,23 +30,67 @@ export default function ThoughtPage() {
   const router = useRouter()
   const pathname = usePathname()
 
-  /* ---------- Load today's thought ---------- */
-  useEffect(() => {
-    const loadTodayThought = async () => {
-      try {
-        const today = new Date().toISOString().split('T')[0]
+  const loadTodayThought = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      console.log('Loading thought for date:', today)
 
-        const res = await fetch('/api/thoughts')
-        const thoughts: ThoughtHistoryItem[] = await res.json()
+      // Try to fetch from API first
+      const res = await fetch('/api/thoughts')
+      if (res.ok) {
+        const thoughts: any[] = await res.json()
+        console.log('All thoughts from API:', thoughts)
 
-        const todayThought = thoughts.find(t => t.date === today)
-        setCurrentThought(todayThought || null)
-      } catch (err) {
-        console.error('Failed to load today thought', err)
-        setCurrentThought(null)
+        // Map API data structure to frontend interface
+        const mappedThoughts = thoughts.map(thought => ({
+          id: thought.id,
+          content: thought.text,
+          date: thought.publishDate,
+          adminName: thought.createdBy?.name || 'Admin',
+          adminId: thought.createdBy?.uid || 'admin'
+        }))
+
+        const todayThought = mappedThoughts.find(t => t.date === today)
+        console.log('Today\'s thought found from API:', todayThought)
+        
+        if (todayThought) {
+          setCurrentThought(todayThought)
+          return
+        }
       }
+    } catch (error) {
+      console.log('API mode failed, falling back to localStorage')
     }
 
+    // Fallback to localStorage
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const savedThought = localStorage.getItem('dailyThought')
+      
+      if (savedThought) {
+        console.log('Found thought in localStorage:', savedThought)
+        const thoughtItem: ThoughtHistoryItem = {
+          id: 'localStorage',
+          content: savedThought,
+          date: today,
+          adminName: 'Current Admin',
+          adminId: 'admin_current'
+        }
+        setCurrentThought(thoughtItem)
+      } else {
+        console.log('No thought found in localStorage for today')
+        setCurrentThought(null)
+      }
+    } catch (err) {
+      console.error('Failed to load from localStorage:', err)
+      setCurrentThought(null)
+    }
+  }
+
+  /* ---------- Load today's thought ---------- */
+  useEffect(() => {
+    // Clear any stale localStorage data
+    localStorage.removeItem('dailyThought')
     loadTodayThought()
   }, [])
 
@@ -70,38 +115,51 @@ export default function ThoughtPage() {
   const handleOpenModal = () => setIsModalOpen(true)
   const handleCloseModal = () => setIsModalOpen(false)
 
-  const handleThoughtSaved = (thought: string) => {
+  const handleThoughtSaved = async (thought: string) => {
     addToast('Thought saved successfully!', 'success')
     setIsModalOpen(false)
-
-    setCurrentThought({
-      id: 'current',
-      content: thought,
-      date: new Date().toISOString().split('T')[0],
-      adminName: 'Current Admin',
-      adminId: 'admin_current',
-    })
+    
+    // Reload today's thought to get the latest from API
+    await loadTodayThought()
   }
 
-  const handleThoughtAdded = (thought: ThoughtHistoryItem) => {
-    setCurrentThought(thought)
+  const handleThoughtAdded = async (thought: ThoughtHistoryItem) => {
+    // Reload today's thought to ensure we have the latest
+    await loadTodayThought()
   }
 
   const handleDeleteThought = async () => {
     if (!currentThought) return
 
     try {
+      console.log('Deleting thought with ID:', currentThought.id)
       const res = await fetch(`/api/thoughts?id=${currentThought.id}`, {
         method: 'DELETE',
       })
 
+      console.log('Delete response status:', res.status)
+      console.log('Delete response ok:', res.ok)
+
       if (res.ok) {
+        const responseData = await res.json()
+        console.log('Delete response data:', responseData)
         addToast('Thought deleted successfully!', 'success')
+        
+        // Clear localStorage to prevent old thoughts from reappearing
+        localStorage.removeItem('dailyThought')
+        
+        // Force clear current thought immediately
         setCurrentThought(null)
+        
+        // Then reload to confirm
+        await loadTodayThought()
       } else {
+        const errorText = await res.text()
+        console.error('Delete failed:', errorText)
         addToast('Failed to delete thought', 'error')
       }
-    } catch {
+    } catch (error) {
+      console.error('Delete error:', error)
       addToast('Failed to delete thought', 'error')
     }
   }
@@ -135,6 +193,26 @@ export default function ThoughtPage() {
         </Button>
       </div>
 
+      {!currentThought && (
+        <Card className="mb-8">
+          <CardContent className="p-6 text-center">
+            <Lightbulb className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No Thought for Today
+            </h3>
+            <p className="text-gray-500 mb-4">
+              Add an inspirational thought for students today!
+            </p>
+            <Button
+              onClick={handleOpenModal}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Add Today's Thought
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {currentThought && (
         <Card className="mb-8 bg-linear-to-r from-blue-50 to-indigo-50">
           <CardContent className="p-6">
@@ -159,15 +237,12 @@ export default function ThoughtPage() {
                 </p>
               </div>
 
-              <Button
-                onClick={handleDeleteThought}
-                variant="outline"
-                size="sm"
-                className="text-white bg-red-500 hover:bg-red-600"
-              >
-                <Trash2 className="h-3 w-3 mr-1" />
-                Remove
-              </Button>
+                      <button 
+                        onClick={() => handleDeleteThought()}
+                        className="text-xs sm:text-sm text-red-500 hover:text-white p-2 rounded-xl font-medium hover:bg-red-600 transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <Trash2 className="h-6 w-6" />
+                      </button>
             </div>
           </CardContent>
         </Card>

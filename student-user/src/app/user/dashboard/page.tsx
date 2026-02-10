@@ -7,6 +7,11 @@ import { Textarea } from '@/components/admin/Textarea'
 import { useToast } from '@/components/admin/Toast'
 import { Lightbulb, HelpCircle, MessageSquare, FileText, CheckCircle, Send, X, ChevronDown, ChevronUp } from 'lucide-react'
 
+
+
+
+
+
 interface Thought {
   id: string
   text: string
@@ -43,11 +48,15 @@ interface AnswerModalProps {
   onAnswerSubmitted: (questionId: string) => void
 }
 
+
 function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps) {
   const [answer, setAnswer] = useState('')
   const [existingAnswer, setExistingAnswer] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { addToast } = useToast()
+  const { addToast } = useToast()  
+
+
+
 
   useEffect(() => {
     const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
@@ -56,14 +65,6 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
   }, [question.id, question.publishDate])
 
   const handleSubmit = async () => {
-    const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
-    const currentlyStored = localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
-
-    if (existingAnswer || currentlyStored) {
-      addToast('You already submitted an answer for this question.', 'error')
-      return
-    }
-
     if (!answer.trim()) {
       addToast('Please enter your answer before submitting', 'error')
       return
@@ -77,31 +78,47 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
     setIsSubmitting(true)
     
     try {
-      // Save answer to localStorage
-      localStorage.setItem(`answer_${question.id}_${dateKey}`, answer)
-      
-      // Save to answers history
-      const answers = JSON.parse(localStorage.getItem('userAnswers') || '[]')
-      answers.unshift({
-        date: dateKey,
-        question: question.text,
-        answer: answer,
-        timestamp: new Date().toISOString()
+      // Submit answer to Firebase API
+      const response = await fetch('/api/answers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentId: name, // This should come from authentication
+          studentName: name, // This should come from authentication
+          questionId: question.id,
+          answer: answer.trim()
+        })
       })
-      localStorage.setItem('userAnswers', JSON.stringify(answers))
-      
-      // Update answered questions list
-      const answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions') || '[]')
-      if (!answeredQuestions.includes(question.id)) {
-        answeredQuestions.push(question.id)
-        localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions))
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Answer submitted:', result)
+        
+        // Save to localStorage for UI state
+        const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
+        localStorage.setItem(`answer_${question.id}_${dateKey}`, answer)
+        
+        // Update answered questions list
+        const answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions') || '[]')
+        if (!answeredQuestions.includes(question.id)) {
+          answeredQuestions.push(question.id)
+          localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions))
+        }
+        
+        localStorage.setItem('lastAnswerDate', dateKey)
+        
+        onAnswerSubmitted(question.id)
+        setAnswer('')
+        addToast('Answer submitted successfully!', 'success')
+      } else {
+        const errorData = await response.json()
+        console.error('Submit failed:', errorData)
+        addToast(errorData.message || 'Failed to submit answer', 'error')
       }
-      
-      localStorage.setItem('lastAnswerDate', dateKey)
-      
-      onAnswerSubmitted(question.id)
-      setAnswer('')
     } catch (error) {
+      console.error('Submit error:', error)
       addToast('Failed to submit answer', 'error')
     } finally {
       setIsSubmitting(false)
@@ -110,6 +127,7 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
 
   return (
     <div className="space-y-4">
+      
       {existingAnswer ? (
         <div>
           <label className="block text-sm font-medium text-black mb-2">Your Answer</label>
@@ -155,6 +173,7 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
           disabled={isSubmitting}
           className="hover:cursor-pointer"
         >
+          
           Cancel
         </Button>
       </div>
@@ -188,12 +207,12 @@ export default function SimpleDashboard() {
         // Load questions from API
         const questionsResponse = await fetch('/api/questions')
         const questionsData = await questionsResponse.json()
+        // Show ALL published questions for today (like admin version)
         const todayQuestions = questionsData.filter((q: Question) => q.publishDate === today && q.status === 'published')
-        const latestQuestion = todayQuestions.length > 0 ? todayQuestions[todayQuestions.length - 1] : null
         
         setDailyContent({
           thought: todayThought || null,
-          questions: latestQuestion ? [latestQuestion] : []
+          questions: todayQuestions
         })
           
         // Check if user has answered today
@@ -259,12 +278,11 @@ export default function SimpleDashboard() {
       changeType: 'positive'
     }
   ]
-
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-black">Student Dashboard</h1>
-        <p className="text-black mt-2">Welcome back! Here's your learning progress</p>
+        <h1 className="text-3xl font-bold text-black">Student Dashboard </h1>
+        <p className="text-black mt-2">Welcome back! Here's your learning progress </p>
       </div>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 ">
@@ -327,7 +345,7 @@ export default function SimpleDashboard() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-purple-600" />
-              Question of the Day
+              Questions of the Day
             </CardTitle>
             <CardDescription>Today's discussion prompts</CardDescription>
           </div>
@@ -349,11 +367,11 @@ export default function SimpleDashboard() {
                 <div 
                 key={q.id} 
 
-                className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out   hover:scale-101 ">
+                className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out   hover:scale-101 m-2">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm font-medium text-purple-900">Question of the Day</span>
+                        <span className="text-sm font-medium text-purple-900">Question {index + 1}</span>
                         {isQuestionAnswered(q) && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             ✓ Answered
@@ -370,11 +388,11 @@ export default function SimpleDashboard() {
                       className="inline-flex items-center gap-2 text-sm text-purple-900 hover:text-purple-950"
                     >
                       {isExpanded ? (
-                        <ChevronUp className="h-4 w-4 cursor-pointer" />
+                        <ChevronUp className="h-6 w-6 cursor-pointer" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 cursor-pointer" />
+                        <ChevronDown className="h-6 w-6 cursor-pointer" />
                       )}
-                      Details
+                   
                     </button>
 
                     <Button 
@@ -383,7 +401,7 @@ export default function SimpleDashboard() {
                         setShowAnswerModal(true)
                       }}
                       disabled={isQuestionAnswered(q)}
-                      className="hover:cursor-pointer bg-gradient-to-r from-pink-200 to-purple-300 hover:from-pink-300 hover:to-purple-400"
+                      className="hover:cursor-pointer bg-gradient-to-r  from-pink-500 to-purple-600 hover:from-purple-500 hover:to-pink-600"
                       size="sm"
                     >
                       {isQuestionAnswered(q) ? 'Already Answered' : 'Answer Question'}
@@ -411,8 +429,8 @@ export default function SimpleDashboard() {
             ) : (
               <div className="text-center py-4">
                 <HelpCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-black font-medium mb-1">No Question Available</p>
-                <p className="text-sm text-black">Check back later for today's question!</p>
+                <p className="text-black font-medium mb-1">No Questions Available</p>
+                <p className="text-sm text-black">Check back later for today's questions!</p>
               </div>
             )}
           </div>

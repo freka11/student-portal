@@ -37,6 +37,7 @@ export function Sidebar() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
 
+
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
     useEffect(() => {
@@ -55,6 +56,7 @@ export function Sidebar() {
 
   return (
     <>
+    
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md border border-gray-200 active:scale-100 "
@@ -84,6 +86,7 @@ export function Sidebar() {
             
                 <span className="text-lg text-black">
                   { user?.username}
+                  
                 </span>
               </div>
             </div>

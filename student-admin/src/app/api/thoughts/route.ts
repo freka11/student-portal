@@ -33,6 +33,11 @@ export async function POST(request: NextRequest) {
   try {
     const newThoughtData = await request.json()
     
+    // Validate required fields
+    if (!newThoughtData.thought || newThoughtData.thought.trim() === '') {
+      return NextResponse.json({ success: false, message: 'Thought text is required' }, { status: 400 })
+    }
+    
     // Add thought to Firestore
     const thoughtDoc = {
       text: newThoughtData.thought,

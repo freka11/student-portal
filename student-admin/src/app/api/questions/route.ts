@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Add question to Firestore with student audience
     const questionData = {
       text: newQuestionData.question,
-      status: 'published',
+      status: newQuestionData.status || 'published', // Use status from frontend
       createdBy: {
         uid: 'admin-123', // This should come from authenticated admin
         name: 'Admin User' // This should come from authenticated admin

@@ -1,5 +1,5 @@
-// Test script to verify custom claims are working
-// Usage: node test-custom-claims.js
+// Script to show all custom claims for all users in Firebase
+// Usage: node show-custom-claims.js
 
 const admin = require('firebase-admin');
 
@@ -15,32 +15,60 @@ admin.initializeApp({
   projectId: 'student-portal-fab55'
 });
 
-async function testCustomClaims() {
-  console.log('🧪 Testing custom claims...');
-
-  const users = [
-    'admin@admin.com',
-    '2@admin.com', 
-    'rahul@student.com',
-    'likhith@student.com'
-  ];
-
-  for (const email of users) {
-    try {
-      const userRecord = await admin.auth().getUserByEmail(email);
-      
-      console.log(`\n👤 User: ${email}`);
+async function showAllCustomClaims() {
+  console.log('🔍 Showing all custom claims for all users...\n');
+  
+  try {
+    // List all users
+    const listUsersResult = await admin.auth().listUsers(1000);
+    
+    if (listUsersResult.users.length === 0) {
+      console.log('❌ No users found in Firebase Authentication');
+      return;
+    }
+    
+    console.log(`📊 Found ${listUsersResult.users.length} users:\n`);
+    
+    // Display each user and their custom claims
+    listUsersResult.users.forEach((userRecord, index) => {
+      console.log(`👤 User ${index + 1}:`);
+      console.log(`   Email: ${userRecord.email}`);
       console.log(`   UID: ${userRecord.uid}`);
-      console.log(`   Role: ${userRecord.customClaims?.role || 'NOT SET'}`);
-      console.log(`   Permissions: ${JSON.stringify(userRecord.customClaims?.permissions || [])}`);
+      console.log(`   Display Name: ${userRecord.displayName || 'Not set'}`);
+      console.log(`   Created: ${userRecord.metadata.creationTime}`);
+      console.log(`   Last Sign In: ${userRecord.metadata.lastSignInTime || 'Never'}`);
       
-    } catch (error) {
-      console.error(`❌ Error for ${email}:`, error.message);
+      // Show custom claims
+      if (userRecord.customClaims && Object.keys(userRecord.customClaims).length > 0) {
+        console.log(`   🔐 Custom Claims:`);
+        Object.entries(userRecord.customClaims).forEach(([key, value]) => {
+          console.log(`      ${key}: ${JSON.stringify(value)}`);
+        });
+      } else {
+        console.log(`   🔐 Custom Claims: None (user has no custom claims)`);
+      }
+      
+      console.log('   ' + '='.repeat(50));
+    });
+    
+    // Summary
+    const usersWithClaims = listUsersResult.users.filter(user => 
+      userRecord.customClaims && Object.keys(userRecord.customClaims).length > 0
+    );
+    
+    console.log(`\n📈 Summary:`);
+    console.log(`   Total Users: ${listUsersResult.users.length}`);
+    console.log(`   Users with Custom Claims: ${usersWithClaims.length}`);
+    console.log(`   Users without Custom Claims: ${listUsersResult.users.length - usersWithClaims.length}`);
+    
+  } catch (error) {
+    console.error('❌ Error fetching users:', error.message);
+    if (error.code === 'permission-denied') {
+      console.log('💡 Make sure your Firebase service account has proper permissions');
     }
   }
-
-  console.log('\n✅ Custom claims test complete!');
+  
   process.exit(0);
 }
 
-testCustomClaims().catch(console.error);
+showAllCustomClaims().catch(console.error);

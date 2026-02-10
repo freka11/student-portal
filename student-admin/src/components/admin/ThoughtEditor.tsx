@@ -24,13 +24,12 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [existingThought, setExistingThought] = useState('')
 
-  // Load existing thought (could be from localStorage or API)
+  // Load existing thought (start fresh each time)
   useEffect(() => {
-    const savedThought = localStorage.getItem('dailyThought')
-    if (savedThought) {
-      setExistingThought(savedThought)
-      setThought(savedThought)
-    }
+    // Clear any stale localStorage data to ensure fresh state
+    localStorage.removeItem('dailyThought')
+    setThought('')
+    setExistingThought('')
   }, [])
 
   const createNewThoughtItem = (content: string): ThoughtHistoryItem => {
@@ -50,32 +49,46 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
     setIsSaving(true)
     
     try {
-      // Create new thought item with admin01
-      const newThoughtItem = createNewThoughtItem(thought)
+      // Send correct data structure to API
+      const requestData = {
+        thought: thought.trim()
+      }
       
-      // Save to JSON API
+      console.log('Sending thought data:', requestData)
+      
       const response = await fetch('/api/thoughts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newThoughtItem),
+        body: JSON.stringify(requestData),
       })
       
+      console.log('API Response status:', response.status)
+      console.log('API Response ok:', response.ok)
+      
       if (response.ok) {
-        // Also save to localStorage for current session
-        localStorage.setItem('dailyThought', thought)
-        setExistingThought(thought)
+        const responseData = await response.json()
+        console.log('API Response data:', responseData)
+        
+        // Create thought item for event/callback
+        const newThoughtItem = createNewThoughtItem(thought)
         
         // Emit event for other components
         window.dispatchEvent(new CustomEvent('newThought', { detail: newThoughtItem }))
         
         onThoughtSaved(thought)
       } else {
-        throw new Error('Failed to save to server')
+        const errorText = await response.text()
+        console.error('API response error:', errorText)
+        console.error('Full response:', response)
+        throw new Error(`API error: ${response.status} - ${errorText}`)
       }
     } catch (error) {
-      console.error('Failed to save thought:', error)
+      console.error('Failed to save thought - Full error:', error)
+      console.error('Error type:', typeof error)
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error')
+      throw error
     } finally {
       setIsSaving(false)
     }
@@ -87,32 +100,46 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
     setIsSaving(true)
     
     try {
-      // Create thought item with admin01
-      const newThoughtItem = createNewThoughtItem(thought)
+      // Send correct data structure to API
+      const requestData = {
+        thought: thought.trim()
+      }
       
-      // Save to JSON API (use POST for both new and updated thoughts)
+      console.log('Sending thought data:', requestData)
+      
       const response = await fetch('/api/thoughts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newThoughtItem),
+        body: JSON.stringify(requestData),
       })
       
+      console.log('API Response status:', response.status)
+      console.log('API Response ok:', response.ok)
+      
       if (response.ok) {
-        // Also save to localStorage for current session
-        localStorage.setItem('dailyThought', thought)
-        setExistingThought(thought)
+        const responseData = await response.json()
+        console.log('API Response data:', responseData)
+        
+        // Create thought item for event/callback
+        const newThoughtItem = createNewThoughtItem(thought)
         
         // Emit event for other components
         window.dispatchEvent(new CustomEvent('newThought', { detail: newThoughtItem }))
         
         onThoughtSaved(thought)
       } else {
-        throw new Error('Failed to update to server')
+        const errorText = await response.text()
+        console.error('API response error:', errorText)
+        console.error('Full response:', response)
+        throw new Error(`API error: ${response.status} - ${errorText}`)
       }
     } catch (error) {
-      console.error('Failed to update thought:', error)
+      console.error('Failed to update thought - Full error:', error)
+      console.error('Error type:', typeof error)
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error')
+      throw error
     } finally {
       setIsSaving(false)
     }
@@ -191,7 +218,7 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
         {showPreview && (
           <div className="mt-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Preview</h4>
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+            <div className="bg-linear-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
               <div className="flex items-center gap-2 mb-3">
                 <Lightbulb className="h-4 w-4 text-blue-600" />
                 <span className="text-sm font-medium text-blue-900">Thought of the Day</span>

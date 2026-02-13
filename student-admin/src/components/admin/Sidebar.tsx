@@ -14,12 +14,7 @@ import {
   LogOut,
 } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
-
-interface AdminUser {
-  id: string
-  username: string
-  name: string
-}
+import { useAdminUser } from '@/hooks/useAdminUser'
 
 const navigation = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
@@ -27,29 +22,24 @@ const navigation = [
   { name: 'Question', href: '/admin/question', icon: HelpCircle },
   { name: 'Chat', href: '/admin/chat', icon: MessageSquare },
 ]
-  const storedAdmin = localStorage.getItem('adminUser')
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [admin, setAdmin] = useState<AdminUser | null>(null)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const { admin, ready } = useAdminUser()
 
   useEffect(() => {
-    const storedAdmin = localStorage.getItem('adminUser')
-    if (!storedAdmin) {
+    if (!ready) return
+    if (!admin) {
       router.replace('/admin/login')
-      return
     }
-    setAdmin(JSON.parse(storedAdmin))
-  }, [router])
+  }, [ready, admin, router])
 
   const logout = () => {
     localStorage.removeItem('adminUser')
     router.push('/admin/login')
   }
-
-  
-  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   return (
     <>
@@ -92,7 +82,7 @@ export function Sidebar() {
             onClick={()=>setShowLogoutModal(true)}
             className="cursor-pointer hover:scale-105 transition-all duration-200 bg-white hover:bg-red-500"
           >
-            <LogOut className="h-4 w-4 text-gray-600" />
+            <LogOut className="h-4 w-4 text-gray-600 hover:text-white " />
           </Button>
         </div>
 

@@ -1,14 +1,11 @@
 'use client'
-import { onAuthStateChanged } from 'firebase/auth'
+  import { useAdminUser } from '@/hooks/useAdminUser'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { Lightbulb, HelpCircle, Edit, Users, MessageSquare } from 'lucide-react'
-
-
-
 
 
 interface Thought {
@@ -49,19 +46,21 @@ export default function Dashboard() {
   const [todayQuestions, setTodayQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const { addToast, ToastContainer } = useToast()
+  const { admin, ready } = useAdminUser()
   
   const [isModalOpen, setIsModalOpen] = useState(false)
-    const handleOpenModal = () => {
+  const handleOpenModal = () => {
     setIsModalOpen(true)
   }
 
-
-
-  
-
-
   // Load today's content from JSON APIs
   useEffect(() => {
+    if (!ready) return
+    if (!admin) {
+      setLoading(false)
+      return
+    }
+
     const loadTodayContent = async () => {
       try {
         const today = new Date().toISOString().split('T')[0]
@@ -108,7 +107,7 @@ export default function Dashboard() {
       window.removeEventListener('newThought', handleNewThought as EventListener)
       window.removeEventListener('newQuestion', handleNewQuestion as EventListener)
     }
-  }, [])
+  }, [ready, admin])
 
   const statsData = [
     {

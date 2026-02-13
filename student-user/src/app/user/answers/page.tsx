@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { FileText, Calendar, Search, Download, Eye, Loader2 } from 'lucide-react'
+import { useStudentUser } from '@/hooks/useStudentUser'
 
 interface UserAnswer {
   date: string
@@ -27,6 +28,7 @@ export default function AnswersPage() {
   const observer = useRef<IntersectionObserver | null>(null)
   const lastAnswerRef = useRef<HTMLDivElement | null>(null)
   const { addToast, ToastContainer } = useToast()
+  const { user, ready } = useStudentUser()
 
   const loadAnswers = async () => {
     try {
@@ -99,8 +101,11 @@ export default function AnswersPage() {
   }
 
   useEffect(() => {
+    if (!ready) return
+    if (!user) return
+
     loadAnswers()
-  }, [])
+  }, [ready, user])
 
   const submitTestAnswer = async () => {
     try {
@@ -239,7 +244,7 @@ export default function AnswersPage() {
   }
 
   return (
-    <div className="p-6 bg-purple-50">
+    <div className="p-6 bg-linear-to-r from-purple-100 to-pink-200">
       <ToastContainer />
       
       <div className="mb-8">

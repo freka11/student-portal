@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/admin/Card'
 import { HelpCircle, Users } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, usePathname } from 'next/navigation'
+import { useAdminUser } from '@/hooks/useAdminUser'
 
 interface Question {
   id: string
@@ -18,7 +19,6 @@ interface Question {
   status: 'published' | 'draft'
   date?: string
 }
-
 
 interface StudentAnswer {
   id: string
@@ -42,6 +42,7 @@ function QuestionPageContent() {
   const [currentQuestions, setCurrentQuestions] = useState<Question[]>([])
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set())
   const { addToast, ToastContainer } = useToast()
+  const { admin, ready } = useAdminUser()
 
   // Load current questions from API (network mode) or localStorage fallback
   useEffect(() => {
@@ -101,8 +102,11 @@ function QuestionPageContent() {
       }
     }
 
+    if (!ready) return
+    if (!admin) return
+
     loadQuestions()
-  }, [])
+  }, [ready, admin])
 
   const handleQuestionClick = (question: Question) => {
     // Open answers page in new tab

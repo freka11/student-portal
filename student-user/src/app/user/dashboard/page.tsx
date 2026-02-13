@@ -6,11 +6,7 @@ import { Button } from '@/components/admin/Button'
 import { Textarea } from '@/components/admin/Textarea'
 import { useToast } from '@/components/admin/Toast'
 import { Lightbulb, HelpCircle, MessageSquare, FileText, CheckCircle, Send, X, ChevronDown, ChevronUp } from 'lucide-react'
-
-
-
-
-
+import { useStudentUser } from '@/hooks/useStudentUser'
 
 interface Thought {
   id: string
@@ -193,7 +189,7 @@ export default function SimpleDashboard() {
     thought: null,
     questions: []
   })
-  const [user, setUser] = useState<UserData | null>(null)
+  const { user, ready } = useStudentUser()
   const [hasAnsweredToday, setHasAnsweredToday] = useState(false)
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
   const [showAnswerModal, setShowAnswerModal] = useState(false)
@@ -203,22 +199,13 @@ export default function SimpleDashboard() {
   const { addToast, ToastContainer } = useToast()
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('user')
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser)
-        setUser({
-          id: parsed.id,
-          name: parsed.name,
-          email: parsed.email,
-        })
-      }
-    } catch {
-      // If parsing fails, ignore and keep user as null
-    }
-  }, [])
+    if (!ready) return
 
-  useEffect(() => {
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
     const loadTodayContent = async () => {
       try {
         const today = new Date().toISOString().split('T')[0]
@@ -258,7 +245,7 @@ export default function SimpleDashboard() {
     }
 
     loadTodayContent()
-  }, [])
+  }, [ready, user])
 
   const getLocalAnswerForQuestion = (question: Question) => {
     const dateKey = question.publishDate || new Date().toISOString().split('T')[0]

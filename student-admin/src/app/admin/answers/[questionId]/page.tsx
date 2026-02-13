@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
 import { Users, Calendar, ArrowLeft, HelpCircle, Search } from 'lucide-react'
 import Link from 'next/link'
+import { useAdminUser } from '@/hooks/useAdminUser'
 
 interface StudentAnswer {
   id: string
@@ -33,6 +34,7 @@ export default function AnswersByQuestionPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredAnswers, setFilteredAnswers] = useState<StudentAnswer[]>([])
+  const { admin, ready } = useAdminUser()
 
   useEffect(() => {
     const loadData = async () => {
@@ -69,8 +71,14 @@ export default function AnswersByQuestionPage() {
       }
     }
 
+    if (!ready) return
+    if (!admin) {
+      setLoading(false)
+      return
+    }
+
     loadData()
-  }, [questionId])
+  }, [questionId, ready, admin])
 
   // Filter answers based on search term
   useEffect(() => {

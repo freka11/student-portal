@@ -1,30 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { User } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
-
-interface AdminUser {
-  id: string
-  username: string
-  name: string
-}
+import { useAdminUser } from '@/hooks/useAdminUser'
 
 export default function AdminHeader() {
-  const [admin, setAdmin] = useState<AdminUser | null>(null)
   const router = useRouter()
+  const { admin, ready } = useAdminUser()
 
   useEffect(() => {
-    const storedAdmin = localStorage.getItem('adminUser')
-
-    if (!storedAdmin) {
+    if (!ready) return
+    if (!admin) {
       router.replace('/admin/login')
-      return
     }
-
-    setAdmin(JSON.parse(storedAdmin))
-  }, [router])
+  }, [ready, admin, router])
 
   const logout = () => {
     localStorage.removeItem('adminUser')

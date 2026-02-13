@@ -9,6 +9,7 @@ import { ThoughtHistory } from '@/components/admin/ThoughtHistory'
 import ThoughtEditor from '@/components/admin/ThoughtEditor'
 import { Card, CardContent } from '@/components/admin/Card'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { useAdminUser } from '@/hooks/useAdminUser'
 
 interface ThoughtHistoryItem {
   id: string
@@ -17,7 +18,6 @@ interface ThoughtHistoryItem {
   adminName: string
   adminId: string
 }
-
 
 function ThoughtPageContent() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -29,6 +29,7 @@ function ThoughtPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
+  const { admin, ready } = useAdminUser()
 
   const loadTodayThought = async () => {
     try {
@@ -89,10 +90,13 @@ function ThoughtPageContent() {
 
   /* ---------- Load today's thought ---------- */
   useEffect(() => {
+    if (!ready) return
+    if (!admin) return
+
     // Clear any stale localStorage data
     localStorage.removeItem('dailyThought')
     loadTodayThought()
-  }, [])
+  }, [ready, admin])
 
   /* ---------- Open modal via ?add=true and clean URL ---------- */
   useEffect(() => {

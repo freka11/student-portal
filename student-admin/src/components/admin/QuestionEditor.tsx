@@ -193,7 +193,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
             <Button 
               onClick={addQuestion}
               variant="outline"
-              className="flex items-center gap-2"
+              className=" text-black w-full"
             >
               <Plus className="h-4 w-4" />
               Add First Question
@@ -212,7 +212,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
                       onClick={() => removeQuestion(q.id)}
                       variant="outline"
                       size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      className="text-red-500 hover:text-white hover:bg-red-500 transition-colors duration-20 0"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -252,20 +252,20 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
             <Button 
               onClick={handleUpdate} 
               disabled={isSaving || questions.filter(q => q.question.trim()).length === 0}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full"
             >
               <Save className="h-4 w-4" />
               {isSaving ? 'Saving...' : 'Save Questions'}
             </Button>
             
-            <Button 
+          { /* <Button 
               variant="outline" 
               onClick={() => setShowPreview(!showPreview)}
               className="flex items-center gap-2"
             >
               <Eye className="h-4 w-4" />
               {showPreview ? 'Hide' : 'Show'} Preview
-            </Button>
+            </Button>*/}
           </div>
         )}
 

@@ -31,11 +31,16 @@ const tabs = [
   { name: 'Chat with Admin', href: '/user/chat' },
 ]
 
+interface SidebarUser {
+  username?: string
+}
+
+
 export function Sidebar() {
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<SidebarUser | null>(null)
 
 
   const [showLogoutModal, setShowLogoutModal] = useState(false)

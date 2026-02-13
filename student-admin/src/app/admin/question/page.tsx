@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
@@ -37,7 +37,7 @@ interface QuestionHistoryItem {
   adminId: string
 }
 
-export default function QuestionPage() {
+function QuestionPageContent() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentQuestions, setCurrentQuestions] = useState<Question[]>([])
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set())
@@ -200,7 +200,7 @@ useEffect(() => {
 
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-4 sm:p-6 bg-linear-to-r from-purple-100 to-pink-200 ">
       <ToastContainer />
       
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-4">
@@ -210,7 +210,7 @@ useEffect(() => {
         </div>
         <Button
           onClick={handleOpenModal}
-          className="bg-purple-500 hover:bg-purple-700 text-white w-full sm:w-auto"
+          className="bg-blue-700 hover:bg-blue-700 text-white w-full sm:w-auto"
         >
           + Add Question
         </Button>
@@ -310,5 +310,13 @@ useEffect(() => {
         <QuestionEditor onQuestionSaved={handleQuestionsSaved} />
       </Modal>
     </div>
+  )
+}
+
+export default function QuestionPage() {
+  return (
+    <Suspense fallback={null}>
+      <QuestionPageContent />
+    </Suspense>
   )
 }

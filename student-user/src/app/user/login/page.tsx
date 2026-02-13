@@ -59,6 +59,25 @@ export default function LoginPage() {
       // Convert username to email format for Firebase
       const email = username.includes('@') ? username : `${username}@student.com`
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/43ca688c-b42f-4b46-b34a-008376a5d4f5', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: `log_${Date.now()}_login_attempt`,
+          timestamp: Date.now(),
+          location: 'src/app/user/login/page.tsx:handleSubmit',
+          message: 'Login submit attempt',
+          data: {
+            usernameLength: username.length,
+            emailDerived: email,
+          },
+          runId: 'pre-fix',
+          hypothesisId: 'H2'
+        })
+      }).catch(() => {})
+      // #endregion
+
       // Use Firebase client-side authentication
       const { signInWithEmailAndPassword } = await import('firebase/auth')
       const { auth } = await import('@/lib/firebase-client')
@@ -96,6 +115,26 @@ export default function LoginPage() {
         
       } catch (firebaseError: any) {
         console.error('Firebase auth error:', firebaseError)
+
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/43ca688c-b42f-4b46-b34a-008376a5d4f5', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: `log_${Date.now()}_firebase_error`,
+            timestamp: Date.now(),
+            location: 'src/app/user/login/page.tsx:handleSubmit',
+            message: 'Firebase auth error',
+            data: {
+              code: firebaseError?.code || null,
+              name: firebaseError?.name || null,
+              message: firebaseError?.message || null,
+            },
+            runId: 'pre-fix',
+            hypothesisId: 'H3'
+          })
+        }).catch(() => {})
+        // #endregion
         
         // Handle specific Firebase auth errors
         if (firebaseError.code === 'auth/user-not-found') {
@@ -104,6 +143,8 @@ export default function LoginPage() {
           addToast('Invalid password', 'error')
         } else if (firebaseError.code === 'auth/invalid-email') {
           addToast('Invalid email format', 'error')
+        } else if (firebaseError.code === 'auth/invalid-credential') {
+          addToast('Invalid credential. Check email/password or Firebase config.', 'error')
         } else {
           addToast('Authentication failed', 'error')
         }

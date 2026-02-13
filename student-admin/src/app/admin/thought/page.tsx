@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { Trash2, Lightbulb } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
@@ -19,7 +19,7 @@ interface ThoughtHistoryItem {
 }
 
 
-export default function ThoughtPage() {
+function ThoughtPageContent() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentThought, setCurrentThought] =
     useState<ThoughtHistoryItem | null>(null)
@@ -172,9 +172,8 @@ export default function ThoughtPage() {
       day: 'numeric',
     })
 
-  /* ---------- UI ---------- */
   return (
-    <div className="p-6">
+    <div className="p-6 bg-linear-to-r from-blue-100 to-blue-200  ">
       <ToastContainer />
 
       <div className="flex items-center justify-between mb-8">
@@ -194,8 +193,8 @@ export default function ThoughtPage() {
       </div>
 
       {!currentThought && (
-        <Card className="mb-8">
-          <CardContent className="p-6 text-center">
+        <Card className="mb-8 bg-linear-to-l from-blue-100 to-blue-50 ">
+          <CardContent className="p-6 text-center ">
             <Lightbulb className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               No Thought for Today
@@ -205,17 +204,17 @@ export default function ThoughtPage() {
             </p>
             <Button
               onClick={handleOpenModal}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-blue-500 hover:bg-blue-700 text-white hover:scale-103 transition-all duration-200"
             >
-              Add Today's Thought
+              Add Thought
             </Button>
           </CardContent>
         </Card>
       )}
 
       {currentThought && (
-        <Card className="mb-8 bg-linear-to-r from-blue-50 to-indigo-50">
-          <CardContent className="p-6">
+        <Card className="mb-8 bg-linear-to-r from-blue-50 to-indigo-50 hover:scale-103 transition-all duration-200 ">          
+        <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <Lightbulb className="h-5 w-5 text-blue-600" />
               <span className="text-sm font-medium text-blue-900">
@@ -258,5 +257,13 @@ export default function ThoughtPage() {
         <ThoughtEditor onThoughtSaved={handleThoughtSaved} />
       </Modal>
     </div>
+  )
+}
+
+export default function ThoughtPage() {
+  return (
+    <Suspense fallback={null}>
+      <ThoughtPageContent />
+    </Suspense>
   )
 }

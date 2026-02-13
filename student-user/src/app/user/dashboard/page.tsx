@@ -42,14 +42,21 @@ interface DailyContent {
   questions: Question[]
 }
 
+interface UserData {
+  id: string
+  name: string
+  email: string
+}
+
 interface AnswerModalProps {
   question: Question
+  user: UserData | null
   onClose: () => void
   onAnswerSubmitted: (questionId: string) => void
 }
 
 
-function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps) {
+function AnswerModal({ question, user, onClose, onAnswerSubmitted }: AnswerModalProps) {
   const [answer, setAnswer] = useState('')
   const [existingAnswer, setExistingAnswer] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -85,8 +92,8 @@ function AnswerModal({ question, onClose, onAnswerSubmitted }: AnswerModalProps)
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          studentId: name, // This should come from authentication
-          studentName: name, // This should come from authentication
+          studentId: user?.id || 'unknown',
+          studentName: user?.name || 'Unknown Student',
           questionId: question.id,
           answer: answer.trim()
         })
@@ -186,6 +193,7 @@ export default function SimpleDashboard() {
     thought: null,
     questions: []
   })
+  const [user, setUser] = useState<UserData | null>(null)
   const [hasAnsweredToday, setHasAnsweredToday] = useState(false)
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
   const [showAnswerModal, setShowAnswerModal] = useState(false)
@@ -193,6 +201,22 @@ export default function SimpleDashboard() {
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const { addToast, ToastContainer } = useToast()
+
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('user')
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser)
+        setUser({
+          id: parsed.id,
+          name: parsed.name,
+          email: parsed.email,
+        })
+      }
+    } catch {
+      // If parsing fails, ignore and keep user as null
+    }
+  }, [])
 
   useEffect(() => {
     const loadTodayContent = async () => {
@@ -401,7 +425,7 @@ export default function SimpleDashboard() {
                         setShowAnswerModal(true)
                       }}
                       disabled={isQuestionAnswered(q)}
-                      className="hover:cursor-pointer bg-gradient-to-r  from-pink-500 to-purple-600 hover:from-purple-500 hover:to-pink-600"
+                      className="hover:cursor-pointer bg-gradient-to-r  from-pink-300 to-purple-400 hover:from-purple-500 hover:to-pink-600 transition-colors duration-300"
                       size="sm"
                     >
                       {isQuestionAnswered(q) ? 'Already Answered' : 'Answer Question'}
@@ -464,6 +488,7 @@ export default function SimpleDashboard() {
                 </div>
                 <AnswerModal 
                   question={selectedQuestion}
+                   user={user}  
                   onClose={() => setShowAnswerModal(false)}
                   onAnswerSubmitted={(questionId) => {
                     setAnsweredQuestions(prev => [...prev, questionId])

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { Trash2, Lightbulb } from 'lucide-react'
+import { Trash2, Lightbulb, Plus } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { Modal } from '@/components/admin/Modal'
@@ -190,9 +190,10 @@ function ThoughtPageContent() {
 
         <Button
           onClick={handleOpenModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-blue-700 hover:bg-blue-700 text-white w-full sm:w-auto hover:pr-8 transition-all ease-in-out duration-300 active:scale-90"
         >
-          Add Thought
+          <Plus className="m-auto" />
+          
         </Button>
       </div>
 

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { db } from '@/lib/firebase-client'
 
 /* ---------- Local UI Components ---------- */
 
@@ -85,33 +87,48 @@ export default function LoginPage() {
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password)
         const token = await userCredential.user.getIdToken()
-        
-        // Create session via API
-        const sessionResponse = await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
 
-        if (sessionResponse.ok) {
-          const sessionData = await sessionResponse.json()
-          
-          // Store user data with role
-          const userData = {
-            id: userCredential.user.uid,
-            email: userCredential.user.email,
+        // Create/update Firestore user profile (canonical source for chat user discovery)
+        await setDoc(
+          doc(db, 'users', userCredential.user.uid),
+          {
+            email: userCredential.user.email || email,
+            username,
             name: userCredential.user.displayName || username,
-            username: username,
-            role: sessionData.user?.role || 'student',
-            permissions: sessionData.user?.permissions || []
+            role: 'student',
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+
+        // Create session via API (non-blocking)
+        let sessionData: any = null
+        try {
+          const sessionResponse = await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+          if (sessionResponse.ok) {
+            sessionData = await sessionResponse.json()
           }
-          
-          localStorage.setItem('user', JSON.stringify(userData))
-          router.push('/user/dashboard')
-        } else {
-          addToast('Failed to create session', 'error')
+        } catch {
+          sessionData = null
         }
+
+        // Store user data with role
+        const userData = {
+          id: userCredential.user.uid,
+          email: userCredential.user.email,
+          name: userCredential.user.displayName || username,
+          username: username,
+          role: sessionData?.user?.role || 'student',
+          permissions: sessionData?.user?.permissions || [],
+        }
+
+        localStorage.setItem('user', JSON.stringify(userData))
+        router.push('/user/dashboard')
         
       } catch (firebaseError: any) {
         console.error('Firebase auth error:', firebaseError)

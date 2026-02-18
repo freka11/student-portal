@@ -22,7 +22,8 @@ interface Question {
   publishDate: string
   createdBy: string
   adminId: string
-  status: 'published' | 'draft'
+  status: 'Active' | 'Disabled'
+  disabled?: boolean
 }
 
 interface QuestionHistoryItem {
@@ -41,7 +42,7 @@ interface DailyContent {
 interface UserData {
   id: string
   name: string
-  email: string
+  email?: string
 }
 
 interface AnswerModalProps {
@@ -212,14 +213,26 @@ export default function SimpleDashboard() {
         
         // Load thoughts from API
         const thoughtsResponse = await fetch('/api/thoughts')
+        if (!thoughtsResponse.ok) {
+          throw new Error(`Failed to fetch thoughts: ${thoughtsResponse.status}`)
+        }
         const thoughtsData = await thoughtsResponse.json()
-        const todayThought = thoughtsData.find((thought: Thought) => thought.publishDate === today)
+        
+        // Ensure thoughtsData is an array
+        const thoughtsArray = Array.isArray(thoughtsData) ? thoughtsData : []
+        const todayThought = thoughtsArray.find((thought: Thought) => thought.publishDate === today)
         
         // Load questions from API
         const questionsResponse = await fetch('/api/questions')
+        if (!questionsResponse.ok) {
+          throw new Error(`Failed to fetch questions: ${questionsResponse.status}`)
+        }
         const questionsData = await questionsResponse.json()
+        
+        // Ensure questionsData is an array
+        const questionsArray = Array.isArray(questionsData) ? questionsData : []
         // Show ALL published questions for today (like admin version)
-        const todayQuestions = questionsData.filter((q: Question) => q.publishDate === today && q.status === 'published')
+        const todayQuestions = questionsArray.filter((q: Question) => q.publishDate === today)
         
         setDailyContent({
           thought: todayThought || null,
@@ -280,13 +293,6 @@ export default function SimpleDashboard() {
       icon: Lightbulb,
       change: 'Keep it up!',
       changeType: 'positive'
-    },
-    {
-      title: 'Total Interactions',
-      value: '0',
-      icon: MessageSquare,
-      change: '+0 this week',
-      changeType: 'positive'
     }
   ]
   return (
@@ -296,7 +302,7 @@ export default function SimpleDashboard() {
         <p className="text-black mt-2">Welcome back! Here's your learning progress </p>
       </div>
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 ">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 ">
         {stats.map((stat) => (
           <Card key={stat.title} className='hover:shadow-lg transition-shadow'>
             <CardContent className="p-6 ">
@@ -358,7 +364,7 @@ export default function SimpleDashboard() {
               <HelpCircle className="h-5 w-5 text-purple-600" />
               Questions of the Day
             </CardTitle>
-            <CardDescription>Today's discussion prompts</CardDescription>
+           
           </div>
         </CardHeader>
         <CardContent>
@@ -378,7 +384,11 @@ export default function SimpleDashboard() {
                 <div 
                 key={q.id} 
 
-                className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out   hover:scale-101 m-2">
+                className={`p-4 rounded-lg border ${
+    q.disabled
+      ? 'bg-gray-200 border-gray-300 opacity-70'
+      : 'border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out   hover:scale-101 m-2'
+  }`}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -388,6 +398,13 @@ export default function SimpleDashboard() {
                             ✓ Answered
                           </span>
                         )}
+                        {
+                          q.disabled && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              Disabled
+                            </span>
+                          )
+                        }
                       </div>
                       <p className="text-black mb-3">{q.text}</p>
                     </div>
@@ -405,7 +422,7 @@ export default function SimpleDashboard() {
                       )}
                    
                     </button>
-
+                   {q.disabled ? null : (   
                     <Button 
                       onClick={() => {
                         setSelectedQuestion(q)
@@ -416,7 +433,7 @@ export default function SimpleDashboard() {
                       size="sm"
                     >
                       {isQuestionAnswered(q) ? 'Already Answered' : 'Answer Question'}
-                    </Button>
+                    </Button>)}
                   </div>
 
                   {isExpanded && (

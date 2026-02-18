@@ -15,10 +15,41 @@ import {
   getDoc,
   setDoc,
   writeBatch,
+  onSnapshot,
+  increment,
 } from 'firebase/firestore'
 import { db } from './firebase-client'
 import { Conversation, Message, SendMessageParams } from '@/types/chat'
 import { generateConversationId } from './firestore-refs'
+
+export const getConversationById = async (conversationId: string): Promise<Conversation | null> => {
+  try {
+    const conversationRef = doc(db, 'conversations', conversationId)
+    const snap = await getDoc(conversationRef)
+    if (!snap.exists()) return null
+
+    const data = snap.data()
+    return {
+      id: snap.id,
+      adminId: data.adminId,
+      studentId: data.studentId,
+      adminName: data.adminName,
+      studentName: data.studentName,
+      adminAvatar: data.adminAvatar,
+      studentAvatar: data.studentAvatar,
+      lastMessage: data.lastMessage,
+      lastMessageTime: data.lastMessageTime?.toDate() || new Date(),
+      lastMessageSenderId: data.lastMessageSenderId,
+      adminUnreadCount: data.adminUnreadCount || 0,
+      studentUnreadCount: data.studentUnreadCount || 0,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    }
+  } catch (error) {
+    console.error('Error fetching conversation by id:', error)
+    throw error
+  }
+}
 
 // Send a message to Firestore
 export const sendMessage = async (params: SendMessageParams): Promise<string> => {
@@ -61,6 +92,45 @@ export const sendMessage = async (params: SendMessageParams): Promise<string> =>
     console.error('Error sending message:', error)
     throw error
   }
+}
+//SubscribetoConvos
+export const subscribeToConversations = (
+  userId: string,
+  userType: 'admin' | 'student',
+  callback: (conversations: Conversation[]) => void
+) => {
+  const conversationsRef = collection(db, 'conversations')
+
+  const q =
+    userType === 'admin'
+      ? query(conversationsRef, where('adminId', '==', userId), orderBy('updatedAt', 'desc'))
+      : query(conversationsRef, where('studentId', '==', userId), orderBy('updatedAt', 'desc'))
+
+  return onSnapshot(q, (snapshot) => {
+    const conversations: Conversation[] = []
+
+    snapshot.forEach((doc) => {
+      const data = doc.data()
+      conversations.push({
+        id: doc.id,
+        adminId: data.adminId,
+        studentId: data.studentId,
+        adminName: data.adminName,
+        studentName: data.studentName,
+        adminAvatar: data.adminAvatar,
+        studentAvatar: data.studentAvatar,
+        lastMessage: data.lastMessage,
+        lastMessageTime: data.lastMessageTime?.toDate() || new Date(),
+        lastMessageSenderId: data.lastMessageSenderId,
+        adminUnreadCount: data.adminUnreadCount || 0,
+        studentUnreadCount: data.studentUnreadCount || 0,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      })
+    })
+
+    callback(conversations)
+  })
 }
 
 // Get conversations for a user
@@ -278,12 +348,13 @@ export const updateLastMessage = async (
     const unreadCountField = userType === 'admin' ? 'studentUnreadCount' : 'adminUnreadCount'
 
     await updateDoc(conversationRef, {
-      lastMessage: message,
-      lastMessageTime: serverTimestamp(),
-      lastMessageSenderId: senderId,
-      [unreadCountField]: ((await getDoc(conversationRef)).data()?.[unreadCountField] || 0) + 1,
-      updatedAt: serverTimestamp(),
-    })
+  lastMessage: message,
+  lastMessageTime: serverTimestamp(),
+  lastMessageSenderId: senderId,
+  [unreadCountField]: increment(1),
+  updatedAt: serverTimestamp(),
+})
+
   } catch (error) {
     console.error('Error updating last message:', error)
     throw error

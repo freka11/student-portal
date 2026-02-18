@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, ChevronUp, ChevronDown,  } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { Modal } from '@/components/admin/Modal'
@@ -18,6 +18,7 @@ interface Question {
   question: string  
   status: 'published' | 'draft'
   date?: string
+  disabled?: boolean
 }
 
 interface StudentAnswer {
@@ -44,74 +45,62 @@ function QuestionPageContent() {
   const { addToast, ToastContainer } = useToast()
   const { admin, ready } = useAdminUser()
 
+  const fetchQuestions = async () => {
+  try {
+    const response = await fetch('/api/questions')
+    if (!response.ok) throw new Error('Failed to fetch')
+
+    const data = await response.json()
+
+    const mappedQuestions = data.map((q: any) => ({
+      ...q,
+      question: q.text,
+      disabled: q.disabled ?? false
+    }))
+
+    setCurrentQuestions(mappedQuestions)
+  } catch (error) {
+    console.error('Fetch error:', error)
+  }
+}
+
+
   // Load current questions from API (network mode) or localStorage fallback
   useEffect(() => {
-    const loadQuestions = async () => {
-      try {
-        // Try to fetch from API first (network mode)
-        const response = await fetch('/api/questions')
-        if (response.ok) {
-          const data = await response.json()
-          // API returns array of questions with 'text' field, map to 'question' field
-          const mappedQuestions = data.map((q: any) => ({
-            ...q,
-            question: q.text // Map text field to question field
-          }))
-          setCurrentQuestions(mappedQuestions)
-          return
-        }
-      } catch (error) {
-        console.log('Network mode failed, falling back to localStorage')
-      }
 
-      // Fallback to localStorage
-      const today = new Date().toISOString().split('T')[0]
-      const savedQuestions = localStorage.getItem('dailyQuestions')
-      if (savedQuestions) {
-        const parsed = JSON.parse(savedQuestions)
-        // Filter to only show today's questions
-        const todayQuestions = parsed.filter((q: Question) => {
-          const questionDate = q.date || today
-          return questionDate === today
-        })
-        setCurrentQuestions(todayQuestions)
-      } else {
-        // Set mock questions if no data exists
-        const mockQuestions = [
-          {
-            id: 'q1',
-            question: 'What is the most surprising thing you learned this week, and how did it change your perspective?',
-            status: 'published' as const,
-            date: today
-          },
-          {
-            id: 'q2',
-            question: 'Describe a challenge you faced recently and how you overcame it.',
-            status: 'published' as const,
-            date: today
-          },
-          {
-            id: 'q3',
-            question: 'What skill would you like to develop next, and what steps will you take to learn it?',
-            status: 'draft' as const,
-            date: today
-          }
-        ]
-        setCurrentQuestions(mockQuestions)
-        localStorage.setItem('dailyQuestions', JSON.stringify(mockQuestions))
-      }
-    }
-
-    if (!ready) return
-    if (!admin) return
-
-    loadQuestions()
+   if (!ready || !admin) return
+  fetchQuestions()
   }, [ready, admin])
 
-  const handleQuestionClick = (question: Question) => {
-    // Open answers page in new tab
-    window.open(`/admin/answers/${question.id}`, '_blank')
+  const handleToggleDisable = async (questionId: string, currentDisabled?: boolean) => {
+  try {
+    const response = await fetch(`/api/questions?id=${questionId}`, {
+      method: 'PATCH', // 👈 use PATCH for updating
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        disabled: !(currentDisabled ?? false)
+      })
+    })
+
+    if (response.ok) {
+      await fetchQuestions()
+       addToast(
+    !currentDisabled ? 'Question disabled' : 'Question enabled',
+    'success'
+  )
+    } else {
+      addToast('Failed to update question', 'error')
+    }
+  } catch (error) {
+    console.error(error)
+    addToast('Failed to update question', 'error')
   }
+}
+
+
+ 
 
   const handleDeleteQuestion = async (questionId: string) => {
    
@@ -122,12 +111,10 @@ function QuestionPageContent() {
       })
       
       if (response.ok) {
-        // Remove from local state
-        setCurrentQuestions(prev => prev.filter(q => q.id !== questionId))
-        // Update localStorage
-        const updatedQuestions = currentQuestions.filter(q => q.id !== questionId)
-        localStorage.setItem('dailyQuestions', JSON.stringify(updatedQuestions))
-        addToast('Question deleted successfully!', 'success')
+        // Remove from local state and sync localStorage from the same source of truth
+      
+           await fetchQuestions()
+          addToast('Question deleted successfully!', 'success')
       } else {
         addToast('Failed to delete question', 'error')
       }
@@ -155,18 +142,12 @@ function QuestionPageContent() {
     setIsModalOpen(false)
   }
 
-  const handleQuestionsSaved = (questions: Question[]) => {
-    addToast('Questions saved successfully!', 'success')
-    handleCloseModal()
-    // Add today's date to questions if not present
-    const today = new Date().toISOString().split('T')[0]
-    const questionsWithDate = questions.map(q => ({
-      ...q,
-      date: q.date || today
-    }))
-    setCurrentQuestions(questionsWithDate)
-    localStorage.setItem('dailyQuestions', JSON.stringify(questionsWithDate))
-  }
+ const handleQuestionsSaved = async () => {
+  addToast('Questions saved successfully!', 'success')
+  handleCloseModal()
+  await fetchQuestions()
+}
+
 
   const handleQuestionsAdded = (questionItem: QuestionHistoryItem) => {
     // Update current questions when new questions are added to history
@@ -214,9 +195,9 @@ useEffect(() => {
         </div>
         <Button
           onClick={handleOpenModal}
-          className="bg-blue-700 hover:bg-blue-700 text-white w-full sm:w-auto"
+          className="bg-blue-700 hover:bg-blue-700 text-white w-full sm:w-auto hover:pr-8 transition-all ease-in-out duration-300 active:scale-90"
         >
-          + Add Question
+          <Plus className="m-auto" />
         </Button>
       </div>
 
@@ -231,19 +212,17 @@ useEffect(() => {
               {currentQuestions.map((q, index) => (
                 <div 
                   key={q.id} 
-                  className="p-4 rounded-lg border border-purple-200 bg-linear-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out hover:scale-101"
+                  className={`p-4 rounded-lg border border-purple-200 ${
+                    q.disabled
+                      ? 'bg-gray-200 border-gray-300 opacity-70'
+                      : 'bg-linear-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out hover:scale-101'
+                  }`}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-sm font-medium text-purple-900">Question {index + 1}</span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          q.status === 'published' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {q.status === 'published' ? 'Published' : 'Draft'}
-                        </span>
+
                       </div>
                       <p className="text-black mb-3">{q.question}</p>
                     </div>
@@ -271,6 +250,19 @@ useEffect(() => {
                         <Users className="h-4 w-4 mr-1" />
                         View Answers
                       </a>
+                      <button
+                      title="Disable question"
+  onClick={() => handleToggleDisable(q.id, q.disabled)}
+  className={`text-xs sm:text-sm px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+    q.disabled
+      ? 'bg-green-600 text-white hover:bg-green-700'
+      : 'bg-gray-600 text-white hover:bg-gray-700'
+  }`}
+  
+>
+  {q.disabled ? 'enable' : 'disable'}
+</button>
+
                       <button 
                         onClick={() => handleDeleteQuestion(q.id)}
                         className="text-xs sm:text-sm text-red-500 hover:text-white p-2 rounded-xl font-medium hover:bg-red-600 transition-colors cursor-pointer flex items-center gap-1"
@@ -286,7 +278,7 @@ useEffect(() => {
                         <h4 className="text-sm font-medium text-black mb-2">Question Details</h4>
                         <div className="border border-purple-100 rounded-lg p-3 bg-white">
                           <p className="text-gray-700 text-sm mb-2">
-                            <strong>Status:</strong> {q.status === 'published' ? 'Published' : 'Draft'}
+                            <strong>Status:</strong> {!q.disabled ? 'Active' : 'Inactive'}
                           </p>
                           <p className="text-gray-700 text-sm mb-2">
                             <strong>Date:</strong> {formatDate(new Date().toISOString().split('T')[0])}

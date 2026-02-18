@@ -9,7 +9,7 @@ interface MessageInputProps {
   onSend: () => void
   disabled: boolean
   loading: boolean
-}
+  }
 
 export const MessageInput = ({
   value,

@@ -8,10 +8,13 @@ export async function POST(request: Request) {
     // Convert username to email format for Firebase Auth
     const email = username.includes('@') ? username : `${username}@admin.com`
 
+    console.log('🔑 Admin login attempt:', { username, email })
+
     // Return email for client-side Firebase authentication
     return NextResponse.json({
       email,
-      message: 'Use Firebase client-side authentication'
+      message: 'Use Firebase client-side authentication',
+      note: 'Firebase Admin SDK not configured - using client-side auth only'
     }, { status: 200 })
 
   } catch (error) {

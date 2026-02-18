@@ -38,7 +38,7 @@ export const useAvailableUsers = (currentUserId: string, userType: 'admin' | 'st
           )
         )
 
-        // Map users to available users
+        // Map users to available users - SHOW ALL USERS, NO FILTERING
         const availableUsers: AvailableUser[] = allUsers.map((user) => ({
           id: user.id,
           name: user.name,
@@ -47,6 +47,7 @@ export const useAvailableUsers = (currentUserId: string, userType: 'admin' | 'st
           hasConversation: conversationUserIds.has(user.id),
         }))
 
+        console.log('🔍 Admin useAvailableUsers - Final available users (ALL USERS):', availableUsers)
         setUsers(availableUsers)
       } catch (err) {
         console.error('Error loading available users:', err)

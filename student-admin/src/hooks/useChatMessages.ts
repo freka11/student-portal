@@ -16,12 +16,33 @@ export const useChatMessages = (options: UseChatMessagesOptions) => {
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
 
+  const handleMessagesUpdate = useCallback(
+    (updatedMessages: Message[]) => {
+      setMessages(updatedMessages)
+      setError(null)
+      setHasMore(updatedMessages.length === pageLimit)
+      setLoading(false)
+    },
+    [pageLimit]
+  )
+
+  const handleListenerError = useCallback((err: Error) => {
+    console.error('Listener error:', err)
+    setError(err.message)
+    setLoading(false)
+  }, [])
+
   // Load initial messages
   useEffect(() => {
     if (!conversationId) {
       setMessages([])
+      setLoading(false)
       return
     }
+
+    // Show loading immediately when switching conversations.
+    // Real-time listener will clear this when it delivers the first snapshot.
+    setLoading(true)
 
     const loadMessages = async () => {
       try {
@@ -41,23 +62,11 @@ export const useChatMessages = (options: UseChatMessagesOptions) => {
     loadMessages()
   }, [conversationId, pageLimit])
 
-  // Set up real-time listener with proper cleanup
-  const { unsubscribe } = useChatListener(conversationId, {
-    onMessagesUpdate: (updatedMessages) => {
-      setMessages(updatedMessages)
-    },
-    onError: (err) => {
-      console.error('Listener error:', err)
-      setError(err.message)
-    },
+  // Set up real-time listener
+  useChatListener(conversationId, {
+    onMessagesUpdate: handleMessagesUpdate,
+    onError: handleListenerError,
   })
-
-  // Cleanup listener on unmount
-  useEffect(() => {
-    return () => {
-      unsubscribe()
-    }
-  }, [unsubscribe])
 
   const loadMore = useCallback(async () => {
     if (!conversationId || !hasMore || messages.length === 0) return

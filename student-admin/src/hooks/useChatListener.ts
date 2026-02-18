@@ -14,9 +14,19 @@ export const useChatListener = (
   options: UseChatListenerOptions
 ) => {
   const unsubscribeRef = useRef<Unsubscribe | null>(null)
+  const optionsRef = useRef<UseChatListenerOptions>(options)
+
+  useEffect(() => {
+    optionsRef.current = options
+  }, [options])
 
   const subscribe = useCallback(() => {
     if (!conversationId) return
+
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current()
+      unsubscribeRef.current = null
+    }
 
     try {
       const messagesRef = collection(db, 'conversations', conversationId, 'messages')
@@ -42,18 +52,18 @@ export const useChatListener = (
               metadata: data.metadata,
             })
           })
-          options.onMessagesUpdate(messages)
+          optionsRef.current.onMessagesUpdate(messages)
         },
         (error) => {
           console.error('Listener error:', error)
-          options.onError?.(error as Error)
+          optionsRef.current.onError?.(error as Error)
         }
       )
     } catch (error) {
       console.error('Error setting up listener:', error)
-      options.onError?.(error as Error)
+      optionsRef.current.onError?.(error as Error)
     }
-  }, [conversationId, options])
+  }, [conversationId])
 
   const unsubscribe = useCallback(() => {
     if (unsubscribeRef.current) {

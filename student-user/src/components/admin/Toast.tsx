@@ -17,7 +17,7 @@ export function Toast({ message, type, onClose }: ToastProps) {
     const timer = setTimeout(() => {
       setIsVisible(false)
       setTimeout(onClose, 300)
-    }, 3000)
+    }, 2000)
 
     return () => clearTimeout(timer)
   }, [onClose])

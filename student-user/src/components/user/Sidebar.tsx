@@ -81,9 +81,9 @@ export function Sidebar() {
               
               onClick={()=>setShowLogoutModal(true)}
             
-              className='cursor-pointer hover:scale-105 transition-all duration-200 bg-white hover:bg-red-500'
+              className='cursor-pointer hover:scale-105 transition-all duration-200 bg-white hover:text-white text-grey-400 hover:bg-red-500 '
             >
-              <LogOut className="h-4 w-4 text-gray-600" />
+              <LogOut className="h-5 w-5" />
             </Button>
           </div>
         <div className="p-4 lg:p-6">

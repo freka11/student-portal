@@ -3,11 +3,13 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Conversation, Message } from '@/types/chat'
 import {
   getConversations,
+  getConversationById,
   sendMessage,
   markAsRead,
   updateLastMessage,
 } from '@/lib/chatService'
 import { useChatMessages } from './useChatMessages'
+import { subscribeToConversations } from '@/lib/chatService'
 
 interface UseChatOptions {
   userId: string
@@ -32,30 +34,27 @@ export const useChat = (options: UseChatOptions) => {
   })
 
   // Load conversations
-  useEffect(() => {
-    const loadConversations = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const convs = await getConversations(userId, userType)
-        setConversations(convs)
-      } catch (err) {
-        console.error('Error loading conversations:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load conversations')
-      } finally {
-        setLoading(false)
-      }
-    }
+  
+useEffect(() => {
+  if (!userId) return
 
-    if (userId) {
-      loadConversations()
-    }
-  }, [userId, userType])
+  setLoading(true)
 
+  const unsubscribe = subscribeToConversations(
+    userId,
+    userType,
+    (convs) => {
+      setConversations(convs)
+      setLoading(false)
+    }
+  )
+
+  return () => unsubscribe()
+}, [userId, userType])
   // Sort conversations by most recent message (memoized)
   const sortedConversations = useMemo(
     () =>
-      conversations.sort(
+      [...conversations].sort(
         (a, b) => b.lastMessageTime.getTime() - a.lastMessageTime.getTime()
       ),
     [conversations]
@@ -73,7 +72,20 @@ export const useChat = (options: UseChatOptions) => {
 
   const selectConversation = useCallback(
     async (conversationId: string) => {
-      const conv = conversations.find((c) => c.id === conversationId)
+      if (!conversationId) {
+        setSelectedConversation(null)
+        return
+      }
+
+      let conv = conversations.find((c) => c.id === conversationId) || null
+      if (!conv) {
+        try {
+          conv = await getConversationById(conversationId)
+        } catch (err) {
+          console.error('Error fetching conversation:', err)
+        }
+      }
+
       if (conv) {
         setSelectedConversation(conv)
         // Mark messages as read

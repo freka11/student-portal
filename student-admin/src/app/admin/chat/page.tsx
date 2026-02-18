@@ -13,12 +13,14 @@ import { MessageInput } from '@/components/admin/MessageInput'
 import { useAdminUser } from '@/hooks/useAdminUser'
 import { createConversation } from '@/lib/chatService'
 
+
+
 export default function ChatPage() {
   const { admin, ready } = useAdminUser()
   const { addToast, ToastContainer } = useToast()
   const [newMessage, setNewMessage] = useState('')
   const [sendingMessage, setSendingMessage] = useState(false)
-  const [showAvailableUsers, setShowAvailableUsers] = useState(false)
+  const [sidebarView, setSidebarView] = useState<'users' | 'conversations'>('users')
 
   const {
     conversations,
@@ -39,6 +41,15 @@ export default function ChatPage() {
     admin?.id || '',
     'admin'
   )
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 Admin Chat Debug - Admin User:', admin)
+    console.log('🔍 Admin Chat Debug - Available Users:', availableUsers)
+    console.log('🔍 Admin Chat Debug - Users Loading:', usersLoading)
+    console.log('🔍 Admin Chat Debug - Conversations:', conversations)
+    console.log('🔍 Admin Chat Debug - Selected Conversation:', selectedConversation)
+  }, [admin, availableUsers, usersLoading, conversations, selectedConversation])
 
   useEffect(() => {
     if (error) {
@@ -64,7 +75,9 @@ export default function ChatPage() {
       setSendingMessage(true)
       await sendMessage(newMessage)
       setNewMessage('')
-      addToast('Message sent', 'success')
+     
+      
+      
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : 'Failed to send message',
@@ -97,7 +110,7 @@ export default function ChatPage() {
         selectConversation(conversationId)
       }
       
-      setShowAvailableUsers(false)
+      setSidebarView('users')
       addToast(`Started conversation with ${studentName}`, 'success')
     } catch (err) {
       addToast(
@@ -146,16 +159,32 @@ export default function ChatPage() {
                   <h2 className="text-lg font-semibold text-[#111b21]">Chats</h2>
                   <p className="text-xs text-[#667781] mt-1">Select a student to view messages</p>
                 </div>
-                <Button
-                  onClick={() => setShowAvailableUsers(!showAvailableUsers)}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Plus className="h-4 w-4" />
-                  New
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setSidebarView('users')}
+                    className={`flex items-center gap-2 ${
+                      sidebarView === 'users'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-white hover:bg-gray-100 text-black border border-gray-200'
+                    }`}
+                  >
+                    <Plus className="h-4 w-4" />
+                    New
+                  </Button>
+                  <Button
+                    onClick={() => setSidebarView('conversations')}
+                    className={`hidden sm:flex items-center gap-2 ${
+                      sidebarView === 'conversations'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-white hover:bg-gray-100 text-black border border-gray-200'
+                    }`}
+                  >
+                    Recent
+                  </Button>
+                </div>
               </div>
 
-              {showAvailableUsers ? (
+              {sidebarView === 'users' ? (
                 // Available Users List
                 <div className="flex-1 overflow-y-auto">
                   {usersLoading ? (

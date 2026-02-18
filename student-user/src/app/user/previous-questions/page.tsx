@@ -9,6 +9,7 @@ interface Question {
   id: string
   question: string
   status: 'published' | 'draft'
+  disabled?: boolean   
 }
 
 interface QuestionHistoryItem {
@@ -75,7 +76,8 @@ export default function PreviousQuestionsPage() {
           acc[date].questions.push({
             id: question.id,
             question: question.text, // Map 'text' to 'question'
-            status: question.status
+            status: question.status,
+            disabled: question.disabled
           })
           return acc
         }, {})
@@ -177,7 +179,7 @@ export default function PreviousQuestionsPage() {
           <div className="space-y-6">
             {questionHistory.map((historyItem) => {
               // Check if this history item has any published questions
-              const publishedQuestions = historyItem.questions.filter((q: Question) => q.status === 'published')
+              const publishedQuestions = historyItem.questions.filter((q: Question) =>  q.disabled !== true)
               if (publishedQuestions.length === 0) return null // Skip if no published questions
               
               return (

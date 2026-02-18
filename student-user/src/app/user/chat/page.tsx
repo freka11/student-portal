@@ -18,7 +18,7 @@ export default function UserChatPage() {
   const { addToast, ToastContainer } = useToast()
   const [newMessage, setNewMessage] = useState('')
   const [sendingMessage, setSendingMessage] = useState(false)
-  const [showAvailableUsers, setShowAvailableUsers] = useState(false)
+  const [sidebarView, setSidebarView] = useState<'users' | 'conversations'>('users')
 
   const {
     conversations,
@@ -33,12 +33,22 @@ export default function UserChatPage() {
   } = useChat({
     userId: user?.id || '',
     userType: 'student',
+
   })
 
   const { users: availableUsers, loading: usersLoading } = useAvailableUsers(
     user?.id || '',
     'student'
   )
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 Chat Debug - Student User:', user)
+    console.log('🔍 Chat Debug - Available Users:', availableUsers)
+    console.log('🔍 Chat Debug - Users Loading:', usersLoading)
+    console.log('🔍 Chat Debug - Conversations:', conversations)
+    console.log('🔍 Chat Debug - Selected Conversation:', selectedConversation)
+  }, [user, availableUsers, usersLoading, conversations, selectedConversation])
 
   useEffect(() => {
     if (error) {
@@ -96,8 +106,6 @@ export default function UserChatPage() {
         // If conversation not in list yet, create a temporary one
         selectConversation(conversationId)
       }
-      
-      setShowAvailableUsers(false)
       addToast(`Started conversation with ${adminName}`, 'success')
     } catch (err) {
       addToast(
@@ -146,16 +154,32 @@ export default function UserChatPage() {
                   <h2 className="text-lg font-semibold text-[#111b21]">Chats</h2>
                   <p className="text-xs text-[#667781] mt-1">Select an admin to chat</p>
                 </div>
-                <Button
-                  onClick={() => setShowAvailableUsers(!showAvailableUsers)}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Plus className="h-4 w-4" />
-                  New
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setSidebarView('users')}
+                    className={`flex items-center gap-2 ${
+                      sidebarView === 'users'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-white hover:bg-gray-100 text-black border border-gray-200'
+                    }`}
+                  >
+                    <Plus className="h-4 w-4" />
+                    New
+                  </Button>
+                  <Button
+                    onClick={() => setSidebarView('conversations')}
+                    className={`hidden sm:flex items-center gap-2 ${
+                      sidebarView === 'conversations'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-white hover:bg-gray-100 text-black border border-gray-200'
+                    }`}
+                  >
+                    Recent
+                  </Button>
+                </div>
               </div>
 
-              {showAvailableUsers ? (
+              {sidebarView === 'users' ? (
                 // Available Users List
                 <div className="flex-1 overflow-y-auto">
                   {usersLoading ? (

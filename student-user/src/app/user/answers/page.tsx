@@ -38,7 +38,10 @@ export default function AnswersPage() {
         const answersData = await answersResponse.json()
         console.log('All answers data:', answersData)
         
-        if (answersData.length === 0) {
+        // Ensure answersData is an array
+        const answersArray = Array.isArray(answersData) ? answersData : []
+        
+        if (answersArray.length === 0) {
           console.log('No answers found in database')
           setAnswers([])
           setFilteredAnswers([])
@@ -48,7 +51,7 @@ export default function AnswersPage() {
         // For debugging: Show all answers to see if data exists
         // In a real app, you would filter by current student's ID
         const currentStudentId = 'current_student' // This should come from auth
-        const studentAnswers = answersData.filter((answer: any) => {
+        const studentAnswers = answersArray.filter((answer: any) => {
           // Show all answers for debugging, comment this for production
           return true; //answer.studentId === currentStudentId || !answer.studentId
         })
@@ -244,7 +247,7 @@ export default function AnswersPage() {
   }
 
   return (
-    <div className="p-6 bg-linear-to-r from-purple-100 to-pink-200">
+    <div className="p-6 min-h-screen bg-linear-to-r from-purple-100 to-pink-200">
       <ToastContainer />
       
       <div className="mb-8">

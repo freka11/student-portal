@@ -106,15 +106,19 @@ export default function LoginPage() {
         try {
           const sessionResponse = await fetch('/api/auth/session', {
             method: 'POST',
+            credentials: 'include',
             headers: {
               Authorization: `Bearer ${token}`,
             },
           })
-          if (sessionResponse.ok) {
-            sessionData = await sessionResponse.json()
+          if (!sessionResponse.ok) {
+            addToast('Session creation failed. Please try again.', 'error')
+            return
           }
+          sessionData = await sessionResponse.json()
         } catch {
-          sessionData = null
+          addToast('Session creation failed. Please try again.', 'error')
+          return
         }
 
         // Store user data with role
@@ -217,8 +221,20 @@ export default function LoginPage() {
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Signing in...' : 'Sign in'}
               </Button>
+
+              <div className="text-center text-sm text-gray-700">
+                New here?{' '}
+                <button
+                  type="button"
+                  onClick={() => router.push('/user/signup')}
+                  className="text-blue-600 hover:underline"
+                  disabled={loading}
+                >
+                  Create an account
+                </button>
+              </div>
             </form>
           </CardContent>
         </Card>

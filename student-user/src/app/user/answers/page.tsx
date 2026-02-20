@@ -14,6 +14,13 @@ interface UserAnswer {
   timestamp: string
 }
 
+interface Question {
+  id: string
+  text: string
+  publishDate?: string
+  status?: 'published' | 'draft'
+}
+
 export default function AnswersPage() {
   const [answers, setAnswers] = useState<UserAnswer[]>([])
   const [filteredAnswers, setFilteredAnswers] = useState<UserAnswer[]>([])
@@ -33,9 +40,10 @@ export default function AnswersPage() {
   const loadAnswers = async () => {
     try {
       // Load answers from Firebase API
-      const answersResponse = await fetch('/api/answers')
+      const answersResponse = await fetch('/api/answers', { credentials: 'include' })
       if (answersResponse.ok) {
         const answersData = await answersResponse.json()
+
         console.log('All answers data:', answersData)
         
         // Ensure answersData is an array
@@ -67,18 +75,25 @@ export default function AnswersPage() {
         
         // Load all questions to get question text (only once)
         const questionsResponse = await fetch('/api/questions?date=all')
-        let questions = []
+        let questions: Question[] = []
         if (questionsResponse.ok) {
           questions = await questionsResponse.json()
           console.log('Questions loaded:', questions.length)
         }
+
+        const questionTextById = new Map<string, string>()
+        for (const q of questions) {
+          if (q?.id && typeof q.text === 'string') {
+            questionTextById.set(q.id, q.text)
+          }
+        }
         
         // Transform and enrich answers data
         const userAnswers: UserAnswer[] = studentAnswers.map((answer: any) => {
-          const question = questions.find((q: any) => q.id === answer.questionId)
+          const questionText = questionTextById.get(answer.questionId)
           return {
             date: answer.submittedAt?.split('T')[0] || new Date().toISOString().split('T')[0],
-            question: question?.text || question?.question || `Question ID: ${answer.questionId}`,
+            question: questionText || '',
             answer: answer.answer,
             timestamp: answer.submittedAt
           }
@@ -340,15 +355,15 @@ export default function AnswersPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50  transition-all duration-300 ease-out  m-2">
           {displayedAnswers.map((answer, index) => (
             <Card 
               key={index} 
-              className="hover:shadow-lg transition-shadow"
+              className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out hover:scale-101 m-2"
               ref={index === displayedAnswers.length - 1 ? lastAnswerElementRef : null}
             >
-              <CardHeader>
-                <div className="flex items-start justify-between">
+              <CardHeader >
+                <div className="flex items-start justify-between ">
                   <div className="flex-1">
                     <CardTitle className="text-lg mb-2">{answer.question}</CardTitle>
                     <CardDescription className="flex items-center gap-2">
@@ -372,8 +387,6 @@ export default function AnswersPage() {
               </CardContent>
             </Card>
           ))}
-          
-          {/* Loading indicator */}
           {isLoading && (
             <div className="flex justify-center py-4">
               <div className="flex items-center gap-2 text-gray-500">

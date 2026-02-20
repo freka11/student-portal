@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
         id: 'sample-question',
         text: 'What is your favorite programming language and why?',
         status: 'published',
+        deleted: false,
         createdBy: {
           uid: 'admin-uid-sample',
           name: 'Admin User'
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
         id: 'mock-id-' + Date.now(),
         text: newQuestionData.question,
         status: 'published',
+        deleted: false,
         createdBy: {
           uid: 'admin-123',
           name: 'Admin User'

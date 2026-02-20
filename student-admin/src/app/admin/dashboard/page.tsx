@@ -25,7 +25,6 @@ interface Question {
   adminName: string
   adminId: string
   status: 'published' | 'draft'
-  disabled?: boolean
 }
 
 interface QuestionHistoryItem {
@@ -93,7 +92,6 @@ export default function Dashboard() {
           .map((q: any) => ({
             ...q,
             question: q.text, // Map text field to question field
-            disabled: q.disabled ?? false,
           }))
         setTodayQuestions(todayQuestions)
       } catch (error) {
@@ -228,7 +226,7 @@ export default function Dashboard() {
                 <div
                   key={q.id}
                   className={`p-4 rounded-lg border ${
-                    q.disabled
+                    q.status === 'draft'
                       ? 'bg-gray-200 border-gray-300 opacity-70'
                       : 'border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out   hover:scale-101 m-2'
                   }`}
@@ -239,10 +237,10 @@ export default function Dashboard() {
                         <span className="text-sm font-medium text-purple-900">Question {index + 1}</span>
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            q.disabled ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
+                            q.status === 'draft' ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
                           }`}
                         >
-                          {q.disabled ? 'Disabled' : 'Active'}
+                          {q.status === 'draft' ? 'Draft' : 'Published'}
                         </span>
                       </div>
                       <p className="text-black mb-3">{q.question}</p>

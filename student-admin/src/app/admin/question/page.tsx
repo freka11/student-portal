@@ -18,7 +18,6 @@ interface Question {
   question: string  
   status: 'published' | 'draft'
   date?: string
-  disabled?: boolean
 }
 
 interface StudentAnswer {
@@ -55,7 +54,6 @@ function QuestionPageContent() {
     const mappedQuestions = data.map((q: any) => ({
       ...q,
       question: q.text,
-      disabled: q.disabled ?? false
     }))
 
     setCurrentQuestions(mappedQuestions)
@@ -72,7 +70,7 @@ function QuestionPageContent() {
   fetchQuestions()
   }, [ready, admin])
 
-  const handleToggleDisable = async (questionId: string, currentDisabled?: boolean) => {
+  const handleToggleDraft = async (questionId: string, currentStatus?: 'published' | 'draft') => {
   try {
     const response = await fetch(`/api/questions?id=${questionId}`, {
       method: 'PATCH', // 👈 use PATCH for updating
@@ -80,14 +78,14 @@ function QuestionPageContent() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        disabled: !(currentDisabled ?? false)
+        status: currentStatus === 'published' ? 'draft' : 'published'
       })
     })
 
     if (response.ok) {
       await fetchQuestions()
        addToast(
-    !currentDisabled ? 'Question disabled' : 'Question enabled',
+    currentStatus === 'published' ? 'Moved to draft' : 'Published',
     'success'
   )
     } else {
@@ -212,11 +210,7 @@ useEffect(() => {
               {currentQuestions.map((q, index) => (
                 <div 
                   key={q.id} 
-                  className={`p-4 rounded-lg border border-purple-200 ${
-                    q.disabled
-                      ? 'bg-gray-200 border-gray-300 opacity-70'
-                      : 'bg-linear-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out hover:scale-101'
-                  }`}
+                  className="p-4 rounded-lg border border-purple-200 bg-linear-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out hover:scale-101"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -251,17 +245,16 @@ useEffect(() => {
                         View Answers
                       </a>
                       <button
-                      title="Disable question"
-  onClick={() => handleToggleDisable(q.id, q.disabled)}
-  className={`text-xs sm:text-sm px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-    q.disabled
-      ? 'bg-green-600 text-white hover:bg-green-700'
-      : 'bg-gray-600 text-white hover:bg-gray-700'
-  }`}
-  
->
-  {q.disabled ? 'enable' : 'disable'}
-</button>
+                        title="Toggle draft/publish"
+                        onClick={() => handleToggleDraft(q.id, q.status)}
+                        className={`text-xs sm:text-sm px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+                          q.status === 'draft'
+                            ? 'bg-green-600 text-white hover:bg-green-700'
+                            : 'bg-gray-600 text-white hover:bg-gray-700'
+                        }`}
+                      >
+                        {q.status === 'draft' ? 'Publish' : 'Move to Draft'}
+                      </button>
 
                       <button 
                         onClick={() => handleDeleteQuestion(q.id)}
@@ -278,7 +271,7 @@ useEffect(() => {
                         <h4 className="text-sm font-medium text-black mb-2">Question Details</h4>
                         <div className="border border-purple-100 rounded-lg p-3 bg-white">
                           <p className="text-gray-700 text-sm mb-2">
-                            <strong>Status:</strong> {!q.disabled ? 'Active' : 'Inactive'}
+                            <strong>Status:</strong> {q.status === 'published' ? 'Published' : 'Draft'}
                           </p>
                           <p className="text-gray-700 text-sm mb-2">
                             <strong>Date:</strong> {formatDate(new Date().toISOString().split('T')[0])}

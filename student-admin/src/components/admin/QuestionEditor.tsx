@@ -41,10 +41,14 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
         if (response.ok) {
           const data = await response.json()
           // API returns array of questions with 'text' field, map to 'question' field
-          const mappedQuestions = data.map((q: any) => ({
-            ...q,
-            question: q.text // Map text field to question field
-          }))
+          const mappedQuestions = data
+            .map((q: any) => ({
+              ...q,
+              question: q.text, // Map text field to question field
+              status: q.status === 'draft' ? 'draft' : 'published'
+            }))
+            .filter((q: any) => q.status === 'draft')
+
           setExistingQuestions(mappedQuestions)
           setQuestions(mappedQuestions)
         }
@@ -54,8 +58,14 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
         const savedQuestions = localStorage.getItem('dailyQuestions')
         if (savedQuestions) {
           const parsed = JSON.parse(savedQuestions)
-          setExistingQuestions(parsed)
-          setQuestions(parsed)
+          const normalized = parsed
+            .map((q: any) => ({
+              ...q,
+              status: q.status === 'draft' ? 'draft' : 'published'
+            }))
+            .filter((q: any) => q.status === 'draft')
+          setExistingQuestions(normalized)
+          setQuestions(normalized)
         }
       }
     }
@@ -82,7 +92,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
       date: today.toISOString().split('T')[0],
       adminName: 'Current Admin',
       adminId: 'admin01',
-      status: 'published' // Default to published since draft option is removed
+      status: 'draft'
     }
     setQuestions([...questions, newQuestion])
   }
@@ -97,7 +107,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
     ))
   }
 
-  const handleUpdate = async () => {
+  const handleUpdate = async (targetStatus: 'published' | 'draft') => {
     const validQuestions = questions.filter(q => q.question.trim())
     
     if (validQuestions.length === 0) return
@@ -112,7 +122,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
         
         let requestData: any = {
           question: question.question,
-          status: 'published' // Always set to published since draft option is removed
+          status: targetStatus
         }
         
         console.log('Saving question data:', requestData)
@@ -147,16 +157,17 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
       // Check if all saves were successful
       if (responses.every(response => response.ok)) {
         // Also save to localStorage for current session
-        localStorage.setItem('dailyQuestions', JSON.stringify(validQuestions))
-        setExistingQuestions(validQuestions)
+        const updatedQuestions = validQuestions.map((q) => ({ ...q, status: targetStatus }))
+        localStorage.setItem('dailyQuestions', JSON.stringify(updatedQuestions))
+        setExistingQuestions(updatedQuestions)
         
         // Create question item for event/callback
-        const newQuestionItem = createNewQuestionItem(validQuestions)
+        const newQuestionItem = createNewQuestionItem(updatedQuestions)
         
         // Emit event for other components
         window.dispatchEvent(new CustomEvent('newQuestion', { detail: newQuestionItem }))
         
-        onQuestionSaved(validQuestions)
+        onQuestionSaved(updatedQuestions)
       } else {
         throw new Error('Failed to update to server')
       }
@@ -250,12 +261,22 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
         {questions.length > 0 && (
           <div className="flex gap-3 pt-4 border-t">
             <Button 
-              onClick={handleUpdate} 
+              onClick={() => handleUpdate('published')} 
               disabled={isSaving || questions.filter(q => q.question.trim()).length === 0}
               className="flex items-center gap-2 w-full"
             >
               <Save className="h-4 w-4" />
-              {isSaving ? 'Saving...' : 'Save Questions'}
+              {isSaving ? 'Saving...' : 'Publish Questions'}
+            </Button>
+
+            <Button 
+              onClick={() => handleUpdate('draft')} 
+              disabled={isSaving || questions.filter(q => q.question.trim()).length === 0}
+              variant="outline"
+              className="flex items-center gap-2 w-full"
+            >
+              <Save className="h-4 w-4" />
+              {isSaving ? 'Saving...' : 'Save as Draft'}
             </Button>
             
           { /* <Button 

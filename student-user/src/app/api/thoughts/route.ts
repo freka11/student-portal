@@ -1,22 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { adminAuth, adminFirestore } from '@/lib/firebase-admin'
-
-async function requireStudent() {
-  const cookieStore = await cookies()
-  const session = cookieStore.get('session')
-
-  if (!session) return null
-
-  try {
-    const decoded = await adminAuth.verifyIdToken(session.value)
-    const userRole = (decoded as any).role || decoded.customClaims?.role
-    if (userRole !== 'student') return null
-    return decoded
-  } catch {
-    return null
-  }
-}
+import { adminFirestore } from '@/lib/firebase-admin'
+import { requireStudent } from '@/lib/serverAuth'
 
 export async function GET(request: NextRequest) {
   try {

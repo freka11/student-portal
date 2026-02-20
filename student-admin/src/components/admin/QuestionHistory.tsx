@@ -61,7 +61,8 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
             ...question,
             question: question.text, // Map text field to question field
             adminName: question.createdBy?.name || 'Admin User',
-            adminId: question.createdBy?.uid || 'admin-123'
+            adminId: question.createdBy?.uid || 'admin-123',
+            status: question.status === 'draft' ? 'draft' : 'published'
           }
           
           if (existingGroup) {

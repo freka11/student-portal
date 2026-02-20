@@ -12,12 +12,9 @@ export async function GET(request: NextRequest) {
     if (dateFilter === 'all') {
       // Get all questions for history - no filters
       const snapshot = await questionsQuery.get()
-      const questions = snapshot.docs.map(doc => ({
-  id: doc.id,
-  disabled: false,
-  ...doc.data()
-}))
-
+      const questions = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((q: any) => q.deleted !== true)
       return NextResponse.json(questions)
     } else {
       // Get only today's questions - simplified query
@@ -25,7 +22,9 @@ export async function GET(request: NextRequest) {
       const snapshot = await questionsQuery
         .where('publishDate', '==', today)
         .get()
-      const questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const questions = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((q: any) => q.deleted !== true)
       return NextResponse.json(questions)
     }
   } catch (error) {
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
     const questionData = {
       text: newQuestionData.question,
       status: newQuestionData.status || 'published', // Use status from frontend
-       disabled: false,
+      deleted: false,
       createdBy: {
         uid: 'admin-123', // This should come from authenticated admin
         name: 'Admin User' // This should come from authenticated admin
@@ -91,8 +90,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Question ID is required' }, { status: 400 })
     }
     
-    // Delete question from Firestore
-    await adminFirestore.collection('questions').doc(questionId).delete()
+    // Soft delete question in Firestore
+    await adminFirestore.collection('questions').doc(questionId).update({
+      deleted: true,
+      deletedAt: new Date().toISOString()
+    })
     
     return NextResponse.json({ success: true, message: 'Question deleted successfully' })
   } catch (error) {
@@ -116,11 +118,18 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json()
 
+    if (body?.status !== 'published' && body?.status !== 'draft') {
+      return NextResponse.json(
+        { success: false, message: 'Status must be published or draft' },
+        { status: 400 }
+      )
+    }
+
     await adminFirestore
       .collection('questions')
       .doc(questionId)
       .update({
-        disabled: body.disabled,
+        status: body.status,
         updatedAt: new Date().toISOString()
       })
 
@@ -129,7 +138,7 @@ export async function PATCH(request: NextRequest) {
       message: 'Question updated successfully'
     })
   } catch (error) {
-    console.error('Error updating question disabled state:', error)
+    console.error('Error updating question status:', error)
     return NextResponse.json(
       { success: false, message: 'Failed to update question' },
       { status: 500 }

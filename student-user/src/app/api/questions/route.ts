@@ -1,22 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { adminAuth, adminFirestore } from '@/lib/firebase-admin'
-
-async function requireStudent() {
-  const cookieStore = await cookies()
-  const session = cookieStore.get('session')
-
-  if (!session) return null
-
-  try {
-    const decoded = await adminAuth.verifyIdToken(session.value)
-    const userRole = (decoded as any).role || decoded.customClaims?.role
-    if (userRole !== 'student') return null
-    return decoded
-  } catch {
-    return null
-  }
-}
+import { adminFirestore } from '@/lib/firebase-admin'
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +13,9 @@ export async function GET(request: NextRequest) {
     if (dateFilter === 'all') {
       // Get all questions for history - no filters
       const snapshot = await questionsQuery.get()
-      const questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const questions = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((q: any) => q.status === 'published' && q.deleted !== true)
       return NextResponse.json(questions)
     } else {
       // Get only today's questions - simplified query
@@ -38,7 +23,9 @@ export async function GET(request: NextRequest) {
       const snapshot = await questionsQuery
         .where('publishDate', '==', today)
         .get()
-      const questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      const questions = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((q: any) => q.status === 'published' && q.deleted !== true)
       return NextResponse.json(questions)
     }
   } catch (error) {

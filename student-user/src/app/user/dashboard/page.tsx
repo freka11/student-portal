@@ -22,8 +22,7 @@ interface Question {
   publishDate: string
   createdBy: string
   adminId: string
-  status: 'Active' | 'Disabled'
-  disabled?: boolean
+  status: 'published' | 'draft'
 }
 
 interface QuestionHistoryItem {
@@ -48,25 +47,18 @@ interface UserData {
 interface AnswerModalProps {
   question: Question
   user: UserData | null
+  existingAnswer?: string
   onClose: () => void
-  onAnswerSubmitted: (questionId: string) => void
+  onAnswerSubmitted: (questionId: string, answerText: string) => void
 }
 
 
-function AnswerModal({ question, user, onClose, onAnswerSubmitted }: AnswerModalProps) {
+function AnswerModal({ question, user, existingAnswer, onClose, onAnswerSubmitted }: AnswerModalProps) {
   const [answer, setAnswer] = useState('')
-  const [existingAnswer, setExistingAnswer] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { addToast } = useToast()  
 
-
-
-
-  useEffect(() => {
-    const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
-    const stored = localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
-    setExistingAnswer(stored)
-  }, [question.id, question.publishDate])
+  const resolvedExistingAnswer = existingAnswer || ''
 
   const handleSubmit = async () => {
     if (!answer.trim()) {
@@ -85,41 +77,42 @@ function AnswerModal({ question, user, onClose, onAnswerSubmitted }: AnswerModal
       // Submit answer to Firebase API
       const response = await fetch('/api/answers', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          studentId: user?.id || 'unknown',
-          studentName: user?.name || 'Unknown Student',
           questionId: question.id,
-          answer: answer.trim()
+          answer: answer.trim(),
+          publishDate: question.publishDate || new Date().toISOString().split('T')[0]
         })
       })
 
       if (response.ok) {
         const result = await response.json()
         console.log('Answer submitted:', result)
-        
-        // Save to localStorage for UI state
-        const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
-        localStorage.setItem(`answer_${question.id}_${dateKey}`, answer)
-        
-        // Update answered questions list
-        const answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions') || '[]')
-        if (!answeredQuestions.includes(question.id)) {
-          answeredQuestions.push(question.id)
-          localStorage.setItem('answeredQuestions', JSON.stringify(answeredQuestions))
-        }
-        
-        localStorage.setItem('lastAnswerDate', dateKey)
-        
-        onAnswerSubmitted(question.id)
+
+        onAnswerSubmitted(question.id, answer.trim())
         setAnswer('')
         addToast('Answer submitted successfully!', 'success')
       } else {
-        const errorData = await response.json()
-        console.error('Submit failed:', errorData)
-        addToast(errorData.message || 'Failed to submit answer', 'error')
+        const status = response.status
+        const raw = await response.text()
+        let errorData: any = null
+
+        try {
+          errorData = raw ? JSON.parse(raw) : null
+        } catch {
+          errorData = null
+        }
+
+        console.error(`Submit failed (${status})`, raw || '(empty response body)', errorData)
+
+        if (status === 401) {
+          addToast('Session expired. Please log in again.', 'error')
+        } else {
+          addToast(errorData?.message || 'Failed to submit answer', 'error')
+        }
       }
     } catch (error) {
       console.error('Submit error:', error)
@@ -132,11 +125,11 @@ function AnswerModal({ question, user, onClose, onAnswerSubmitted }: AnswerModal
   return (
     <div className="space-y-4">
       
-      {existingAnswer ? (
+      {resolvedExistingAnswer ? (
         <div>
           <label className="block text-sm font-medium text-black mb-2">Your Answer</label>
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-            <p className="text-sm text-gray-800 whitespace-pre-wrap">{existingAnswer}</p>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap">{resolvedExistingAnswer}</p>
           </div>
           <p className="text-xs text-gray-600 mt-2">This answer is already submitted and cannot be edited.</p>
         </div>
@@ -192,9 +185,14 @@ export default function SimpleDashboard() {
   })
   const { user, ready } = useStudentUser()
   const [hasAnsweredToday, setHasAnsweredToday] = useState(false)
+  const [questionsAnsweredCount, setQuestionsAnsweredCount] = useState(0)
+  const [questionsAnsweredThisWeekCount, setQuestionsAnsweredThisWeekCount] = useState(0)
+  const [streakCount, setStreakCount] = useState(0)
+  const [lastAnsweredDate, setLastAnsweredDate] = useState<string | null>(null)
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
   const [showAnswerModal, setShowAnswerModal] = useState(false)
-  const [answeredQuestions, setAnsweredQuestions] = useState<string[]>([])
+  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(new Set())
+  const [answerByQuestionId, setAnswerByQuestionId] = useState<Record<string, string>>({})
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const { addToast, ToastContainer } = useToast()
@@ -231,19 +229,72 @@ export default function SimpleDashboard() {
         
         // Ensure questionsData is an array
         const questionsArray = Array.isArray(questionsData) ? questionsData : []
-        // Show ALL published questions for today (like admin version)
-        const todayQuestions = questionsArray.filter((q: Question) => q.publishDate === today)
-        
+        // Students should only see published questions
+        const todayQuestions = questionsArray.filter(
+          (q: Question) => q.publishDate === today && q.status === 'published'
+        )
+
+        // Load student's answers once and build lookups
+        const answersResponse = await fetch('/api/answers', { credentials: 'include' })
+        const answersData = answersResponse.ok ? await answersResponse.json() : []
+        const answersArray = Array.isArray(answersData) ? answersData : []
+
+        const uniqueAnsweredQuestionIds = new Set<string>()
+        const uniqueAnsweredQuestionIdsThisWeek = new Set<string>()
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        const sevenDaysAgoMs = sevenDaysAgo.getTime()
+
+        const nextAnswered = new Set<string>()
+        const nextAnswerById: Record<string, string> = {}
+
+        for (const ans of answersArray) {
+          if (!ans?.questionId) continue
+          nextAnswered.add(ans.questionId)
+          uniqueAnsweredQuestionIds.add(ans.questionId)
+
+          const dateKey =
+            typeof ans.publishDate === 'string'
+              ? ans.publishDate
+              : typeof ans.submittedAt === 'string'
+                ? ans.submittedAt.split('T')[0]
+                : null
+
+          if (dateKey) {
+            const dt = new Date(`${dateKey}T00:00:00Z`).getTime()
+            if (!Number.isNaN(dt) && dt >= sevenDaysAgoMs) {
+              uniqueAnsweredQuestionIdsThisWeek.add(ans.questionId)
+            }
+          }
+
+          if (typeof ans.answer === 'string' && ans.answer.trim()) {
+            nextAnswerById[ans.questionId] = ans.answer
+          }
+        }
+
+        setQuestionsAnsweredCount(uniqueAnsweredQuestionIds.size)
+        setQuestionsAnsweredThisWeekCount(uniqueAnsweredQuestionIdsThisWeek.size)
+
+        setAnsweredQuestionIds(nextAnswered)
+        setAnswerByQuestionId(nextAnswerById)
+
         setDailyContent({
           thought: todayThought || null,
           questions: todayQuestions
         })
-          
-        // Check if user has answered today
-        const lastAnswerDate = localStorage.getItem('lastAnswerDate')
-        const savedAnswers = JSON.parse(localStorage.getItem('answeredQuestions') || '[]')
-        setAnsweredQuestions(savedAnswers)
-        setHasAnsweredToday(lastAnswerDate === today)
+
+        setHasAnsweredToday(todayQuestions.some(q => nextAnswered.has(q.id)))
+
+        const streakResponse = await fetch('/api/streak', { credentials: 'include' })
+        if (streakResponse.ok) {
+          const streakData = await streakResponse.json()
+          const streak = streakData?.streak
+          setStreakCount(typeof streak?.streakCount === 'number' ? streak.streakCount : 0)
+          setLastAnsweredDate(typeof streak?.lastAnsweredDate === 'string' ? streak.lastAnsweredDate : null)
+        } else {
+          setStreakCount(0)
+          setLastAnsweredDate(null)
+        }
         
       } catch (error) {
         console.error('Failed to load today\'s content:', error)
@@ -252,6 +303,10 @@ export default function SimpleDashboard() {
           thought: null,
           questions: []
         })
+        setQuestionsAnsweredCount(0)
+        setQuestionsAnsweredThisWeekCount(0)
+        setStreakCount(0)
+        setLastAnsweredDate(null)
       } finally {
         setLoading(false)
       }
@@ -260,14 +315,8 @@ export default function SimpleDashboard() {
     loadTodayContent()
   }, [ready, user])
 
-  const getLocalAnswerForQuestion = (question: Question) => {
-    const dateKey = question.publishDate || new Date().toISOString().split('T')[0]
-    return localStorage.getItem(`answer_${question.id}_${dateKey}`) || ''
-  }
-
   const isQuestionAnswered = (question: Question) => {
-    const localAnswer = getLocalAnswerForQuestion(question)
-    return answeredQuestions.includes(question.id) || !!localAnswer
+    return answeredQuestionIds.has(question.id)
   }
 
   const toggleQuestionExpansion = (questionId: string) => {
@@ -279,17 +328,25 @@ export default function SimpleDashboard() {
     })
   }
 
+  const yesterdayKey = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 1)
+    return d.toISOString().split('T')[0]
+  })()
+
+  const displayStreak = lastAnsweredDate === yesterdayKey ? streakCount : 0
+
   const stats = [
     {
       title: 'Questions Answered',
-      value: '0',
+      value: String(questionsAnsweredCount),
       icon: CheckCircle,
-      change: '+0 this week',
+      change: `+${questionsAnsweredThisWeekCount} this week`,
       changeType: 'positive'
     },
     {
       title: 'Current Streak',
-      value: '0 days',
+      value: `${displayStreak} day${displayStreak === 1 ? '' : 's'}`,
       icon: Lightbulb,
       change: 'Keep it up!',
       changeType: 'positive'
@@ -377,18 +434,14 @@ export default function SimpleDashboard() {
             ) : dailyContent.questions.length > 0 ? (
               dailyContent.questions.map((q: Question, index: number) => (
                 (() => {
-                  const savedAnswer = isQuestionAnswered(q) ? getLocalAnswerForQuestion(q) : ''
+                  const savedAnswer = isQuestionAnswered(q) ? (answerByQuestionId[q.id] || '') : ''
                   const isExpanded = expandedQuestions.has(q.id)
 
                   return (
                 <div 
                 key={q.id} 
 
-                className={`p-4 rounded-lg border ${
-    q.disabled
-      ? 'bg-gray-200 border-gray-300 opacity-70'
-      : 'border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out   hover:scale-101 m-2'
-  }`}>
+                className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out hover:scale-101 m-2">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -398,13 +451,6 @@ export default function SimpleDashboard() {
                             ✓ Answered
                           </span>
                         )}
-                        {
-                          q.disabled && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              Disabled
-                            </span>
-                          )
-                        }
                       </div>
                       <p className="text-black mb-3">{q.text}</p>
                     </div>
@@ -422,7 +468,6 @@ export default function SimpleDashboard() {
                       )}
                    
                     </button>
-                   {q.disabled ? null : (   
                     <Button 
                       onClick={() => {
                         setSelectedQuestion(q)
@@ -433,7 +478,7 @@ export default function SimpleDashboard() {
                       size="sm"
                     >
                       {isQuestionAnswered(q) ? 'Already Answered' : 'Answer Question'}
-                    </Button>)}
+                    </Button>
                   </div>
 
                   {isExpanded && (
@@ -473,7 +518,6 @@ export default function SimpleDashboard() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <CardTitle className="text-xl">Answer Question</CardTitle>
-                  <CardDescription>Share your thoughts on this question</CardDescription>
                 </div>
                 <Button
                   variant="outline"
@@ -493,9 +537,15 @@ export default function SimpleDashboard() {
                 <AnswerModal 
                   question={selectedQuestion}
                    user={user}  
+                  existingAnswer={answerByQuestionId[selectedQuestion.id] || ''}
                   onClose={() => setShowAnswerModal(false)}
-                  onAnswerSubmitted={(questionId) => {
-                    setAnsweredQuestions(prev => [...prev, questionId])
+                  onAnswerSubmitted={(questionId, answerText) => {
+                    setAnsweredQuestionIds(prev => {
+                      const next = new Set(prev)
+                      next.add(questionId)
+                      return next
+                    })
+                    setAnswerByQuestionId(prev => ({ ...prev, [questionId]: answerText }))
                     setShowAnswerModal(false)
                     addToast('Answer submitted successfully!', 'success')
                   }}

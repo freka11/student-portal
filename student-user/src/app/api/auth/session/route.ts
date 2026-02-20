@@ -1,35 +1,34 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import jwt from 'jsonwebtoken'
+import { adminAuth, adminFirestore } from '@/lib/firebase-admin'
 
-// Simple validation for demo purposes (in production, use proper Firebase Admin SDK)
-function validateToken(token: string) {
+function roleFromEmail(email: string): 'student' | 'admin' {
+  if (email.includes('@admin.com')) return 'admin'
+  return 'student'
+}
+
+async function verifyAndBuildSessionUser(token: string) {
+  const decoded = await adminAuth.verifyIdToken(token)
+  const email = (decoded as any).email
+  if (!email) return null
+
+  let role: 'student' | 'admin' = roleFromEmail(email)
+
   try {
-    // For demo: decode JWT without verification (NOT SECURE FOR PRODUCTION)
-    const decoded = jwt.decode(token) as any
-    
-    if (!decoded || !decoded.email) {
-      return null
+    const userDoc = await adminFirestore.collection('users').doc(decoded.uid).get()
+    const userData = userDoc.exists ? (userDoc.data() as any) : null
+    if (userData?.role === 'admin' || userData?.role === 'student') {
+      role = userData.role
     }
-    
-    // Determine role based on email domain
-    let role = 'student'
-    if (decoded.email.includes('@admin.com')) {
-      role = 'admin'
-    } else if (decoded.email.includes('@student.com')) {
-      role = 'student'
-    }
-    
-    return {
-      uid: decoded.uid || decoded.sub,
-      email: decoded.email,
-      role: role,
-      name: decoded.name || decoded.email?.split('@')[0],
-      permissions: role === 'admin' ? ['read', 'write', 'delete'] : ['read', 'write']
-    }
-  } catch (error) {
-    console.error('Token validation error:', error)
-    return null
+  } catch {
+    // If Firestore read fails, fall back to email domain
+  }
+
+  return {
+    uid: decoded.uid,
+    email,
+    role,
+    permissions: role === 'admin' ? ['read', 'write', 'delete'] : ['read', 'write'],
   }
 }
 
@@ -42,7 +41,7 @@ export async function POST(req: Request) {
   const token = authHeader.split(' ')[1]
 
   try {
-    const userData = validateToken(token)
+    const userData = await verifyAndBuildSessionUser(token)
     
     if (!userData) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
@@ -57,10 +56,14 @@ export async function POST(req: Request) {
       permissions: userData.permissions
     }
 
+    const expiresIn = 60 * 60 * 24 * 7 * 1000
+    const sessionCookie = await adminAuth.createSessionCookie(token, { expiresIn })
+
     const cookieStore = await cookies()
-    cookieStore.set('session', token, {
+    cookieStore.set('session', sessionCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7 // 7 days
     })
@@ -84,7 +87,31 @@ export async function GET() {
   }
 
   try {
-    const userData = validateToken(sessionToken)
+    const decoded = await adminAuth.verifySessionCookie(sessionToken, true)
+    const email = (decoded as any).email
+
+    if (!email) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    }
+
+    let role: 'student' | 'admin' = roleFromEmail(email)
+
+    try {
+      const userDoc = await adminFirestore.collection('users').doc(decoded.uid).get()
+      const userData = userDoc.exists ? (userDoc.data() as any) : null
+      if (userData?.role === 'admin' || userData?.role === 'student') {
+        role = userData.role
+      }
+    } catch {
+      // If Firestore read fails, fall back to email domain
+    }
+
+    const userData = {
+      uid: decoded.uid,
+      email,
+      role,
+      permissions: role === 'admin' ? ['read', 'write', 'delete'] : ['read', 'write'],
+    }
     
     if (!userData) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })

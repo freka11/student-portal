@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { Sidebar } from '@/components/user/Sidebar'
 
 import { usePathname } from 'next/navigation'
@@ -13,6 +12,8 @@ export default function UserLayout({
 }) {
     const pathname = usePathname()
    const isLoginPage =  pathname === '/user/login'
+   
+   const isSignupPage =  pathname === '/user/signup'
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -21,7 +22,7 @@ export default function UserLayout({
         className={`relative transition-all duration-300 ease-in-out        
         overflow-hidden`}
       >
-        {!isLoginPage&&<Sidebar/>}
+        {!isLoginPage && !isSignupPage && <Sidebar/>}
       </div>
 
       {/* Main Content */}

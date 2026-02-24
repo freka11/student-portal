@@ -21,7 +21,6 @@ interface Question {
   text: string
   publishDate: string
   createdBy: string
-  adminId: string
   status: 'published' | 'draft'
 }
 

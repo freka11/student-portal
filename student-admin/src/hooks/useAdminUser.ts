@@ -6,8 +6,12 @@ import { auth } from '@/lib/firebase-client'
 export interface AdminUser {
   id: string
   name: string
+  email?: string
   username?: string
   firebaseUid?: string
+  role?: 'admin' | 'teacher' | 'super_admin'
+  publicId?: string
+  permissions?: string[]
 }
 
 export function useAdminUser() {
@@ -27,16 +31,24 @@ export function useAdminUser() {
             // User is authenticated with Firebase
             setAdmin({
               id: parsed.id,
+              email: parsed.email,
               username: parsed.username,
               name: parsed.name,
-              firebaseUid: firebaseUser.uid
+              firebaseUid: firebaseUser.uid,
+              role: parsed.role,
+              publicId: parsed.publicId,
+              permissions: parsed.permissions,
             })
           } else {
             // User not authenticated with Firebase, but has local storage
             setAdmin({
               id: parsed.id,
+              email: parsed.email,
               username: parsed.username,
               name: parsed.name,
+              role: parsed.role,
+              publicId: parsed.publicId,
+              permissions: parsed.permissions,
             })
           }
           setReady(true)

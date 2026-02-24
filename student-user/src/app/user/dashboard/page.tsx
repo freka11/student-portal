@@ -221,7 +221,7 @@ export default function SimpleDashboard() {
         const todayThought = thoughtsArray.find((thought: Thought) => thought.publishDate === today)
         
         // Load questions from API
-        const questionsResponse = await fetch('/api/questions')
+        const questionsResponse = await fetch('/api/questions?date=all')
         if (!questionsResponse.ok) {
           throw new Error(`Failed to fetch questions: ${questionsResponse.status}`)
         }
@@ -229,6 +229,10 @@ export default function SimpleDashboard() {
         
         // Ensure questionsData is an array
         const questionsArray = Array.isArray(questionsData) ? questionsData : []
+        const validQuestionIds = new Set<string>()
+        for (const q of questionsArray) {
+          if (q?.id) validQuestionIds.add(q.id)
+        }
         // Students should only see published questions
         const todayQuestions = questionsArray.filter(
           (q: Question) => q.publishDate === today && q.status === 'published'
@@ -250,6 +254,7 @@ export default function SimpleDashboard() {
 
         for (const ans of answersArray) {
           if (!ans?.questionId) continue
+          if (!validQuestionIds.has(ans.questionId)) continue
           nextAnswered.add(ans.questionId)
           uniqueAnsweredQuestionIds.add(ans.questionId)
 
@@ -298,7 +303,6 @@ export default function SimpleDashboard() {
         
       } catch (error) {
         console.error('Failed to load today\'s content:', error)
-        // Fallback to empty content if API fails
         setDailyContent({
           thought: null,
           questions: []
@@ -328,28 +332,31 @@ export default function SimpleDashboard() {
     })
   }
 
-  const yesterdayKey = (() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 1)
-    return d.toISOString().split('T')[0]
-  })()
+  const toUTCDateKey = (date: Date) => date.toISOString().split('T')[0]
 
-  const displayStreak = lastAnsweredDate === yesterdayKey ? streakCount : 0
+  const addUTCDays = (date: Date, days: number) => {
+    const dt = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+    dt.setUTCDate(dt.getUTCDate() + days)
+    return dt
+  }
+
+  const todayKey = toUTCDateKey(new Date())
+  const yesterdayKey = toUTCDateKey(addUTCDays(new Date(), -1))
+
+  const displayStreak =
+    lastAnsweredDate === todayKey || lastAnsweredDate === yesterdayKey ? streakCount : 0
 
   const stats = [
     {
       title: 'Questions Answered',
       value: String(questionsAnsweredCount),
       icon: CheckCircle,
-      change: `+${questionsAnsweredThisWeekCount} this week`,
-      changeType: 'positive'
     },
     {
-      title: 'Current Streak',
+      title: 'Current Streak 🔥',
       value: `${displayStreak} day${displayStreak === 1 ? '' : 's'}`,
       icon: Lightbulb,
-      change: 'Keep it up!',
-      changeType: 'positive'
+      
     }
   ]
   return (
@@ -367,7 +374,6 @@ export default function SimpleDashboard() {
                 <div>
                   <p className="text-sm font-medium text-black">{stat.title}</p>
                   <p className="text-2xl font-bold text-black mt-1">{stat.value}</p>
-                  <p className="text-sm text-green-600 mt-1">{stat.change}</p>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <stat.icon className="h-6 w-6 text-blue-600" />

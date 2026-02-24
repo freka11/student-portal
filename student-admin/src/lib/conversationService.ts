@@ -13,7 +13,9 @@ export const getOrCreateConversation = async (
   name1: string,
   name2: string,
   avatar1?: string,
-  avatar2?: string
+  avatar2?: string,
+  publicId1?: string,
+  publicId2?: string
 ): Promise<Conversation> => {
   try {
     const conversationId = generateConversationId(userId1, userId2)
@@ -39,6 +41,15 @@ export const getOrCreateConversation = async (
         studentUnreadCount: data.studentUnreadCount || 0,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
+        // NEW ASSIGNMENT FIELDS
+        studentPublicId: data.studentPublicId,
+        assignedTeacherId: data.assignedTeacherId || null,
+        assignedTeacherPublicId: data.assignedTeacherPublicId || null,
+        assignedTeacherName: data.assignedTeacherName || null,
+        assignedBy: data.assignedBy || null,
+        assignedAt: data.assignedAt?.toDate() || null,
+        status: data.status || 'unassigned',
+        authorizedUserIds: data.authorizedUserIds || [data.adminId, data.studentId],
       }
     }
 
@@ -49,6 +60,7 @@ export const getOrCreateConversation = async (
     const studentName = type1 === 'student' ? name1 : name2
     const adminAvatar = type1 === 'admin' ? avatar1 : avatar2
     const studentAvatar = type1 === 'student' ? avatar1 : avatar2
+    const studentPublicId = type1 === 'student' ? publicId1 : publicId2
 
     const newConversation = {
       id: conversationId,
@@ -65,6 +77,15 @@ export const getOrCreateConversation = async (
       studentUnreadCount: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      // NEW ASSIGNMENT FIELDS
+      studentPublicId: studentPublicId || '',
+      assignedTeacherId: null,
+      assignedTeacherPublicId: null,
+      assignedTeacherName: null,
+      assignedBy: null,
+      assignedAt: null,
+      status: 'unassigned',
+      authorizedUserIds: [adminId, studentId],
     }
 
     await setDoc(conversationRef, newConversation)
@@ -122,11 +143,12 @@ export const updateConversationLastMessage = async (
   conversationId: string,
   message: string,
   senderId: string,
-  senderType: 'admin' | 'student'
+  senderType: 'admin' | 'teacher' | 'super_admin' | 'student'
 ): Promise<void> => {
   try {
     const conversationRef = doc(db, 'conversations', conversationId)
-    const unreadCountField = senderType === 'admin' ? 'studentUnreadCount' : 'adminUnreadCount'
+    // Students increment adminUnreadCount; staff increment studentUnreadCount
+    const unreadCountField = senderType === 'student' ? 'adminUnreadCount' : 'studentUnreadCount'
 
     const conversationSnap = await getDoc(conversationRef)
     if (!conversationSnap.exists()) {

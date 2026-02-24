@@ -28,6 +28,7 @@ export async function signInWithGoogle() {
 
   await fetch('/api/auth/session', {
     method: 'POST',
+    credentials: 'include',
     headers: {
       Authorization: `Bearer ${token}`,
     },

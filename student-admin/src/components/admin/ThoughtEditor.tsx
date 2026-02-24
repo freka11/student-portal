@@ -5,13 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/admin/Button'
 import { Textarea } from '@/components/admin/Textarea'
 import { Lightbulb, Save, Eye } from 'lucide-react'
+import { useAdminUser } from '@/hooks/useAdminUser'
 
 interface ThoughtHistoryItem {
   id: string
   content: string
   date: string
   adminName: string
-  adminId: string
 }
 
 interface ThoughtEditorProps {
@@ -23,6 +23,7 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [existingThought, setExistingThought] = useState('')
+  const { admin } = useAdminUser()
 
   // Load existing thought (start fresh each time)
   useEffect(() => {
@@ -38,8 +39,7 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
       id: Date.now().toString(),
       content,
       date: today.toISOString().split('T')[0], // YYYY-MM-DD format
-      adminName: 'Current Admin',
-      adminId: 'admin01'
+      adminName: admin?.name || 'Admin',
     }
   }
 
@@ -58,6 +58,7 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
       
       const response = await fetch('/api/thoughts', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -109,6 +110,7 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
       
       const response = await fetch('/api/thoughts', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },

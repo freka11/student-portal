@@ -4,6 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:3001": "next dev --port 3001",
+    "dev:3002": "next dev --port 3002",
+    "dev:3006": "next dev --port 3006",
+    "kill": "taskkill /F /IM node.exe 2>$null || echo 'No Node processes found'",
+    "clean": "Remove-Item -Recurse -Force .next 2>$null || echo 'No .next directory found'",
+    "reset": "npm run kill && npm run clean && npm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -12,7 +18,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "clsx": "^2.1.1",
     "firebase": "^12.7.0",
-    "firebase-admin": "^13.6.0",
+    "firebase-admin": "^13.6.1",
     "firebase-client": "^0.1.1",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.562.0",

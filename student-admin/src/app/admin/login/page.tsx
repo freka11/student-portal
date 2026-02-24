@@ -73,24 +73,12 @@ export default function LoginPage() {
         const userCredential = await signInWithEmailAndPassword(auth, email, password)
         const token = await userCredential.user.getIdToken()
 
-        // Create/update Firestore user profile (canonical source for chat user discovery)
-        await setDoc(
-          doc(db, 'users', userCredential.user.uid),
-          {
-            email: userCredential.user.email || email,
-            username,
-            name: userCredential.user.displayName || username,
-            role: 'admin',
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        )
-
         // Create session via API (non-blocking)
         let sessionData: any = null
         try {
           const sessionResponse = await fetch('/api/auth/session', {
             method: 'POST',
+            credentials: 'include',
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -102,6 +90,18 @@ export default function LoginPage() {
           sessionData = null
         }
 
+        // Create/update Firestore user profile (canonical source for chat user discovery)
+        await setDoc(
+          doc(db, 'users', userCredential.user.uid),
+          {
+            email: userCredential.user.email || email,
+            username,
+            name: userCredential.user.displayName || username,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+
         // Store user data with role
         const userData = {
           id: userCredential.user.uid,
@@ -109,6 +109,7 @@ export default function LoginPage() {
           name: userCredential.user.displayName || username,
           username: username,
           role: sessionData?.user?.role || 'admin',
+          publicId: sessionData?.user?.publicId,
           permissions: sessionData?.user?.permissions || [],
         }
 

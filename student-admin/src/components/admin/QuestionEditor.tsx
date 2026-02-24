@@ -5,13 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/admin/Button'
 import { Textarea } from '@/components/admin/Textarea'
 import { HelpCircle, Save, Eye, Plus, Trash2 } from 'lucide-react'
+import { useAdminUser } from '@/hooks/useAdminUser'
 
 interface Question {
   id: string
   question: string
   date: string
   adminName: string
-  adminId: string
   status: 'published' | 'draft'
 }
 
@@ -20,7 +20,6 @@ interface QuestionHistoryItem {
   date: string
   questions: Question[]
   adminName: string
-  adminId: string
 }
 
 interface QuestionEditorProps {
@@ -32,6 +31,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
   const [isSaving, setIsSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [existingQuestions, setExistingQuestions] = useState<Question[]>([])
+  const { admin } = useAdminUser()
 
   // Load existing questions from API
   useEffect(() => {
@@ -79,8 +79,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
       id: Date.now().toString(),
       date: today.toISOString().split('T')[0], // YYYY-MM-DD format
       questions,
-      adminName: 'Current Admin',
-      adminId: 'admin01'
+      adminName: admin?.name || 'Admin',
     }
   }
 
@@ -90,8 +89,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
       id: `temp-${Date.now().toString()}`, // Use temporary ID for new questions
       question: '',
       date: today.toISOString().split('T')[0],
-      adminName: 'Current Admin',
-      adminId: 'admin01',
+      adminName: admin?.name || 'Admin',
       status: 'draft'
     }
     setQuestions([...questions, newQuestion])
@@ -137,6 +135,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
         
         const response = await fetch(url, {
           method,
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -279,14 +278,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
               {isSaving ? 'Saving...' : 'Save as Draft'}
             </Button>
             
-          { /* <Button 
-              variant="outline" 
-              onClick={() => setShowPreview(!showPreview)}
-              className="flex items-center gap-2"
-            >
-              <Eye className="h-4 w-4" />
-              {showPreview ? 'Hide' : 'Show'} Preview
-            </Button>*/}
+
           </div>
         )}
 

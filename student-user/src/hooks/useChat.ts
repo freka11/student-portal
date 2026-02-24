@@ -135,6 +135,7 @@ useEffect(() => {
   }, [])
 
   return {
+    allConversations: sortedConversations,
     conversations: filteredConversations,
     selectedConversation,
     messages,

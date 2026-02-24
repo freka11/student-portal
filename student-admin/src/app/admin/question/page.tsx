@@ -20,21 +20,13 @@ interface Question {
   date?: string
 }
 
-interface StudentAnswer {
-  id: string
-  studentId: string
-  studentName: string
-  answer: string
-  questionId: string
-  submittedAt: string
-}
+
 
 interface QuestionHistoryItem {
   id: string
   date: string
   questions: Question[]
   adminName: string
-  adminId: string
 }
 
 function QuestionPageContent() {
@@ -253,7 +245,7 @@ useEffect(() => {
                             : 'bg-gray-600 text-white hover:bg-gray-700'
                         }`}
                       >
-                        {q.status === 'draft' ? 'Publish' : 'Move to Draft'}
+                        {q.status === 'draft' ? 'Publish' : 'Draft'}
                       </button>
 
                       <button 

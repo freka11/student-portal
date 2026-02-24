@@ -6,12 +6,13 @@ export interface User {
   id: string
   name: string
   email: string
-  role: 'admin' | 'student'
+  role: 'admin' | 'student' | 'teacher' | 'super_admin'
+  publicId?: string
   avatar?: string
 }
 
 // Get all users with a specific role
-export const getUsersByRole = async (role: 'admin' | 'student'): Promise<User[]> => {
+export const getUsersByRole = async (role: 'admin' | 'student' | 'teacher' | 'super_admin'): Promise<User[]> => {
   try {
     const usersRef = collection(db, 'users')
     const q = query(usersRef, where('role', '==', role))

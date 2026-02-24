@@ -63,6 +63,18 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const questionSnap = await adminFirestore.collection('questions').doc(answerData.questionId).get()
+    const question = questionSnap.exists ? (questionSnap.data() as any) : null
+    const isDeleted = question?.deleted === true
+    const status = typeof question?.status === 'string' ? question.status : null
+
+    if (!question || isDeleted || status !== 'published') {
+      return NextResponse.json(
+        { success: false, message: 'Question is not available for answering' },
+        { status: 400 }
+      )
+    }
     
     // Create answer document
     const answerDoc = {

@@ -15,13 +15,22 @@ export interface Conversation {
   studentUnreadCount: number
   createdAt: Date
   updatedAt: Date
+  // NEW ASSIGNMENT FIELDS
+  studentPublicId?: string
+  assignedTeacherId: string | null
+  assignedTeacherPublicId: string | null
+  assignedTeacherName: string | null
+  assignedBy: string | null
+  assignedAt: Date | null
+  status: 'unassigned' | 'assigned' | 'closed'
+  authorizedUserIds: string[]
 }
 
 export interface Message {
   id: string
   conversationId: string
   senderId: string
-  senderType: 'admin' | 'student'
+  senderType: 'admin' | 'teacher' | 'super_admin' | 'student'
   senderName: string
   content: string
   timestamp: Date
@@ -47,7 +56,7 @@ export interface SendMessageParams {
   conversationId: string
   content: string
   senderId: string
-  senderType: 'admin' | 'student'
+  senderType: 'admin' | 'teacher' | 'super_admin' | 'student'
 }
 
 export interface ConversationMetadata {

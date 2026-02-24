@@ -1,9 +1,19 @@
-import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
+import { adminAuth, adminFirestore } from '@/lib/firebase-admin'
+import { cookies } from 'next/headers'
+
+interface SessionUser {
+  uid: string
+  email: string
+  name: string
+  role: 'student' | 'admin' | 'teacher' | 'super_admin'
+  publicId?: string
+  permissions: string[]
+}
 
 // Simple validation for demo purposes (in production, use proper Firebase Admin SDK)
-function validateToken(token: string) {
+async function validateToken(token: string) {
   try {
     // For demo: decode JWT without verification (NOT SECURE FOR PRODUCTION)
     const decoded = jwt.decode(token) as any
@@ -12,18 +22,52 @@ function validateToken(token: string) {
       return null
     }
     
+    const resolvedUid: string | undefined =
+      decoded?.user_id || decoded?.uid || decoded?.sub
+
+    if (!resolvedUid) {
+      return null
+    }
+
     // Determine role based on email domain
     let role = 'student'
     if (decoded.email.includes('@admin.com')) {
       role = 'admin'
+      // PROMOTE SPECIFIC USERS TO SUPER ADMIN
+      if (decoded.email.includes('teacher1@admin.com') || decoded.email.includes('teacher2@admin.com')) {
+        role = 'super_admin'
+      }
     } else if (decoded.email.includes('@student.com')) {
       role = 'student'
     }
     
+    let publicId: string | undefined
+    
+    // Try to get user data from Firestore including publicId
+    try {
+      const userSnap = await adminFirestore.collection('users').doc(resolvedUid).get()
+      const userData = userSnap.exists ? userSnap.data() : null
+      
+      if (userData) {
+        // Use role from Firestore if available
+        if (userData.role) {
+          role = userData.role
+        }
+        // Get publicId if available
+        if (userData.publicId) {
+          publicId = userData.publicId
+        }
+      }
+    } catch (firestoreError) {
+      console.warn('Could not fetch user data from Firestore:', firestoreError)
+      // Continue with default values
+    }
+    
     return {
-      uid: decoded.uid || decoded.sub,
+      uid: resolvedUid,
       email: decoded.email,
       role: role,
+      publicId: publicId,
       name: decoded.name || decoded.email?.split('@')[0],
       permissions: role === 'admin' ? ['read', 'write', 'delete'] : ['read', 'write']
     }
@@ -42,18 +86,19 @@ export async function POST(req: Request) {
   const token = authHeader.split(' ')[1]
 
   try {
-    const userData = validateToken(token)
+    const userData = await validateToken(token)
     
     if (!userData) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    console.log('✅ Admin session created for:', userData.email, 'Role:', userData.role)
+    console.log('✅ Admin session created for:', userData.email, 'Role:', userData.role, 'PublicId:', userData.publicId)
 
     const sessionData = {
       uid: userData.uid,
       email: userData.email,
       role: userData.role,
+      publicId: userData.publicId,
       permissions: userData.permissions
     }
 
@@ -84,7 +129,7 @@ export async function GET() {
   }
 
   try {
-    const userData = validateToken(sessionToken)
+    const userData = await validateToken(sessionToken)
     
     if (!userData) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })

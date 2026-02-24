@@ -16,7 +16,6 @@ interface ThoughtHistoryItem {
   content: string
   date: string
   adminName: string
-  adminId: string
 }
 
 function ThoughtPageContent() {
@@ -48,7 +47,6 @@ function ThoughtPageContent() {
           content: thought.text,
           date: thought.publishDate,
           adminName: thought.createdBy?.name || 'Admin',
-          adminId: thought.createdBy?.uid || 'admin'
         }))
 
         const todayThought = mappedThoughts.find(t => t.date === today)
@@ -75,7 +73,6 @@ function ThoughtPageContent() {
           content: savedThought,
           date: today,
           adminName: 'Current Admin',
-          adminId: 'admin_current'
         }
         setCurrentThought(thoughtItem)
       } else {

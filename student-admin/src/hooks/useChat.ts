@@ -9,7 +9,7 @@ import {
   updateLastMessage,
 } from '@/lib/chatService'
 import { useChatMessages } from './useChatMessages'
-import { subscribeToConversations } from '@/lib/chatService'
+import { subscribeToConversations, subscribeToTeacherConversations } from '@/lib/chatService'
 
 
 interface UseChatOptions {
@@ -40,16 +40,32 @@ useEffect(() => {
 
   setLoading(true)
 
-  const unsubscribe = subscribeToConversations(
-    userId,
-    userType,
-    (convs) => {
-      setConversations(convs)
-      setLoading(false)
-    }
-  )
+  let unsubscribe
+  if (userType === 'admin') {
+    // For admins, use the standard subscription (super admin sees all)
+    unsubscribe = subscribeToConversations(
+      userId,
+      userType,
+      (convs) => {
+        setConversations(convs)
+        setLoading(false)
+      }
+    )
+  } else {
+    // For students, use the standard subscription
+    unsubscribe = subscribeToConversations(
+      userId,
+      userType,
+      (convs) => {
+        setConversations(convs)
+        setLoading(false)
+      }
+    )
+  }
 
-  return () => unsubscribe()
+  return () => {
+    if (unsubscribe) unsubscribe()
+  }
 }, [userId, userType])
 
 
@@ -144,6 +160,7 @@ useEffect(() => {
   }, [])
 
   return {
+    allConversations: sortedConversations,
     conversations: filteredConversations,
     selectedConversation,
     messages,

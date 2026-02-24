@@ -23,7 +23,6 @@ interface Question {
   question: string
   date: string
   adminName: string
-  adminId: string
   status: 'published' | 'draft'
 }
 
@@ -32,7 +31,6 @@ interface QuestionHistoryItem {
   date: string
   questions: Question[]
   adminName: string
-  adminId: string
 }
 
 interface AdminUser {
@@ -123,18 +121,17 @@ export default function Dashboard() {
 
   const statsData = [
     {
-      title: 'Thoughts Posted',
+      title: 'Thoughts Posted Today',
       value: todayThought ? '1' : '0',
       icon: Lightbulb,
-      change: '0%',
-      changeType: 'positive'
+    
     },
     {
-      title: 'Questions Asked',
+      title: 'Questions Asked Today',
       value: todayQuestions.length.toString(),
       icon: HelpCircle,
-      change: '0%',
-      changeType: 'positive'
+    
+      
     }
   ]
 
@@ -159,7 +156,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium text-black">{stat.title}</p>
                   <p className="text-2xl font-bold text-black mt-1">{stat.value}</p>
-                  <p className="text-sm text-green-600 mt-1">{stat.change}</p>
+                 
                 </div>
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <stat.icon className="h-6 w-6 text-blue-600" />

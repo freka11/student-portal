@@ -4,10 +4,9 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
-import { MessageSquare, Plus } from 'lucide-react'
+import { MessageSquare, Search } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
 import { useAvailableUsers } from '@/hooks/useAvailableUsers'
-import { ConversationList } from '@/components/user/ConversationList'
 import { MessageThread } from '@/components/user/MessageThread'
 import { MessageInput } from '@/components/user/MessageInput'
 import { useStudentUser } from '@/hooks/useStudentUser'
@@ -18,9 +17,9 @@ export default function UserChatPage() {
   const { addToast, ToastContainer } = useToast()
   const [newMessage, setNewMessage] = useState('')
   const [sendingMessage, setSendingMessage] = useState(false)
-  const [sidebarView, setSidebarView] = useState<'users' | 'conversations'>('users')
 
   const {
+    allConversations,
     conversations,
     selectedConversation,
     messages,
@@ -89,6 +88,12 @@ export default function UserChatPage() {
     if (!user) return
 
     try {
+      const existing = allConversations.find((c) => c.adminId === adminId)
+      if (existing) {
+        selectConversation(existing.id)
+        return
+      }
+
       const conversationId = await createConversation(
         adminId,
         user.id,
@@ -149,86 +154,123 @@ export default function UserChatPage() {
         <div className={`w-full lg:w-80 ${selectedConversation ? 'hidden lg:block' : ''}`}>
           <Card className="h-full">
             <CardContent className="p-4 h-full flex flex-col">
-              <div className="-m-4 mb-4 p-4 bg-[#f0f2f5] border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-[#111b21]">Chats</h2>
-                  <p className="text-xs text-[#667781] mt-1">Select an admin to chat</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => setSidebarView('users')}
-                    className={`flex items-center gap-2 ${
-                      sidebarView === 'users'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-white hover:bg-gray-100 text-black border border-gray-200'
-                    }`}
-                  >
-                    <Plus className="h-4 w-4" />
-                    New
-                  </Button>
-                  <Button
-                    onClick={() => setSidebarView('conversations')}
-                    className={`hidden sm:flex items-center gap-2 ${
-                      sidebarView === 'conversations'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-white hover:bg-gray-100 text-black border border-gray-200'
-                    }`}
-                  >
-                    Recent
-                  </Button>
+              <div className="-m-4 mb-4 p-4 bg-[#f0f2f5] border-b border-gray-200 justify-between">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search admins..."
+                    value={searchQuery}
+                    onChange={(e) => searchConversations(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
               </div>
 
-              {sidebarView === 'users' ? (
-                // Available Users List
-                <div className="flex-1 overflow-y-auto">
-                  {usersLoading ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">Loading admins...</p>
-                    </div>
-                  ) : availableUsers.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No admins available</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {availableUsers.map((admin) => (
-                        <div
-                          key={admin.id}
-                          className="p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-black truncate">
-                                {admin.name}
-                              </p>
-                              <p className="text-xs text-gray-500 truncate">
-                                {admin.email}
-                              </p>
-                            </div>
-                            <Button
-                              onClick={() => handleStartConversation(admin.id, admin.name)}
-                              className="ml-2 bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                            >
-                              Chat
-                            </Button>
-                          </div>
+              <div className="flex-1 overflow-y-auto">
+                {usersLoading && loading ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Loading chats...</p>
+                  </div>
+                ) : (
+                  (() => {
+                    const q = searchQuery.trim().toLowerCase()
+                    const conversationAdminIds = new Set(allConversations.map((c) => c.adminId))
+
+                    const remainingAdmins = availableUsers
+                      .filter((u) => !conversationAdminIds.has(u.id))
+                      .filter((u) => {
+                        if (!q) return true
+                        return (
+                          u.name.toLowerCase().includes(q) ||
+                          u.email.toLowerCase().includes(q)
+                        )
+                      })
+                      .sort((a, b) => a.name.localeCompare(b.name))
+
+                    const hasAny = conversations.length > 0 || remainingAdmins.length > 0
+                    if (!hasAny) {
+                      return (
+                        <div className="text-center py-8">
+                          <p className="text-gray-500">No chats found</p>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                // Conversations List
-                <ConversationList
-                  conversations={conversations}
-                  selectedId={selectedConversation?.id || null}
-                  onSelect={selectConversation}
-                  onSearch={searchConversations}
-                  loading={loading}
-                  searchQuery={searchQuery}
-                />
-              )}
+                      )
+                    }
+
+                    return (
+                      <div className="space-y-1">
+                        {conversations.map((conversation) => {
+                          const adminUser = availableUsers.find(
+                            (u) => u.id === conversation.adminId
+                          )
+                          return (
+                            <div
+                              key={conversation.id}
+                              onClick={() => selectConversation(conversation.id)}
+                              className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                                selectedConversation?.id === conversation.id
+                                  ? 'bg-blue-50 border border-blue-200'
+                                  : 'hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="relative flex-shrink-0">
+                                  <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+                                    {conversation.adminName.charAt(0).toUpperCase()}
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <p className="font-medium text-black truncate">
+                                      {conversation.adminName}
+                                    </p>
+                                    <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                                      {conversation.lastMessageTime.toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  {adminUser?.email ? (
+                                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                                      {adminUser.email}
+                                    </p>
+                                  ) : null}
+                                  <p className="text-sm text-gray-600 truncate mt-1">
+                                    {conversation.lastMessage || 'No messages yet'}
+                                  </p>
+                                </div>
+                                {conversation.studentUnreadCount > 0 && (
+                                  <div className="bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0">
+                                    {conversation.studentUnreadCount}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+
+                        {remainingAdmins.map((admin) => (
+                          <div
+                            key={admin.id}
+                            onClick={() => handleStartConversation(admin.id, admin.name)}
+                            className="p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="relative flex-shrink-0">
+                                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+                                  {admin.name.charAt(0).toUpperCase()}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-black truncate">{admin.name}</p>
+                                <p className="text-xs text-gray-500 truncate mt-1">{admin.email}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -1,52 +1,117 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow all access for authenticated users (TEMPORARY FOR TESTING)
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
     }
-  }
-}
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    function getUserPublicId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.publicId;
+    }
+    
+    function isSuperAdmin() {
+      return getUserRole() == 'super_admin';
+    }
+    
+    function isTeacher() {
+      return getUserRole() == 'teacher';
+    }
+    
+    function isAdmin() {
+      return getUserRole() == 'admin' || isSuperAdmin() || isTeacher();
+    }
+    
+    function isStudent() {
+      return getUserRole() == 'student';
+    }
+    
+    function isAuthorizedUser(conversationId) {
+      return get(/databases/$(database)/documents/conversations/$(conversationId)).data.authorizedUserIds.hasAll([request.auth.uid]);
+    }
 
-// TEMPORARY RULES FOR TESTING - REPLACE WITH PRODUCTION RULES BELOW AFTER TESTING
-
-/*
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Allow users to read their own user document
+    // Users collection rules
     match /users/{userId} {
-      allow read: if request.auth.uid == userId;
-      allow write: if request.auth.uid == userId;
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || // Users can read their own profile
+        isAdmin() // Admins can read all users
+      );
+      
+      allow write: if isAuthenticated() && (
+        request.auth.uid == userId || // Users can update their own profile
+        isSuperAdmin() // Only super admins can change roles
+      );
+      
+      allow create: if isAuthenticated(); // Any authenticated user can create their profile
     }
 
-    // Conversations collection
-    match /conversations/{conversationId} {
-      // Allow read if user is part of the conversation
-      allow read: if request.auth.uid == resource.data.adminId || 
-                     request.auth.uid == resource.data.studentId;
-      
-      // Allow create if user is the admin
-      allow create: if request.auth.uid == request.resource.data.adminId;
-      
-      // Allow update if user is part of the conversation
-      allow update: if request.auth.uid == resource.data.adminId || 
-                       request.auth.uid == resource.data.studentId;
+    // Counters collection rules (for public ID generation)
+    match /counters/{counterId} {
+      allow read, write: if isSuperAdmin(); // Only super admins can manage counters
+    }
 
-      // Messages subcollection
-      match /messages/{messageId} {
-        // Allow read if user is part of the conversation
-        allow read: if request.auth.uid == get(/databases/$(database)/documents/conversations/$(conversationId)).data.adminId ||
-                       request.auth.uid == get(/databases/$(database)/documents/conversations/$(conversationId)).data.studentId;
-        
-        // Allow create if user is authenticated and is the sender
-        allow create: if request.auth.uid == request.resource.data.senderId;
-        
-        // Allow update if user is part of the conversation (for read status updates)
-        allow update: if request.auth.uid == get(/databases/$(database)/documents/conversations/$(conversationId)).data.adminId ||
-                         request.auth.uid == get(/databases/$(database)/documents/conversations/$(conversationId)).data.studentId;
-      }
+    // Conversations collection rules
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || // Super admins can read all conversations
+        isAuthorizedUser(conversationId) // Users can read conversations they're authorized for
+      );
+      
+      allow create: if isAuthenticated() && (
+        isStudent() || // Students can create conversations
+        isAdmin() // Admins can create conversations
+      );
+      
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() || // Super admins can update any conversation
+        isAuthorizedUser(conversationId) // Authorized users can update conversations they're part of
+      );
+      
+      // Assignment-specific rules
+      allow write: if isAuthenticated() && (
+        isSuperAdmin() || // Super admins can assign conversations
+        (isTeacher() && resource.data.assignedTeacherId == request.auth.uid) // Teachers can update assigned conversations
+      );
+    }
+
+    // Messages subcollection rules
+    match /conversations/{conversationId}/messages/{messageId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || // Super admins can read all messages
+        isAuthorizedUser(conversationId) // Users can read messages from conversations they're authorized for
+      );
+      
+      allow create: if isAuthenticated() && isAuthorizedUser(conversationId); // Only authorized users can send messages
+      
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.senderId || // Users can update their own messages
+        isSuperAdmin() // Super admins can update any message
+      );
+    }
+
+    // Questions collection rules
+    match /questions/{questionId} {
+      allow read: if isAuthenticated(); // All authenticated users can read questions
+      allow write: if isAdmin(); // Only admins can write questions
+      allow create: if isAdmin(); // Only admins can create questions
+    }
+
+    // Thoughts collection rules
+    match /thoughts/{thoughtId} {
+      allow read: if isAuthenticated(); // All authenticated users can read thoughts
+      allow write: if isAdmin(); // Only admins can write thoughts
+      allow create: if isAdmin(); // Only admins can create thoughts
+    }
+
+    // Answers collection rules
+    match /answers/{answerId} {
+      allow read: if isAuthenticated(); // All authenticated users can read answers
+      allow write: if isAdmin(); // Only admins can write answers
+      allow create: if isAdmin(); // Only admins can create answers
     }
   }
 }
-*/

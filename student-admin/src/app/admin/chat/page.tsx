@@ -4,14 +4,16 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
-import { MessageSquare, Plus } from 'lucide-react'
+import { MessageSquare, Search, Calendar, Crown } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
+import { useTeacherChat } from '@/hooks/useTeacherChat'
 import { useAvailableUsers } from '@/hooks/useAvailableUsers'
-import { ConversationList } from '@/components/admin/ConversationList'
 import { MessageThread } from '@/components/admin/MessageThread'
 import { MessageInput } from '@/components/admin/MessageInput'
+import { ConversationAssignment } from '@/components/admin/ConversationAssignment'
 import { useAdminUser } from '@/hooks/useAdminUser'
 import { createConversation } from '@/lib/chatService'
+import { getUsersByRole } from '@/lib/userService'
 
 
 
@@ -20,9 +22,17 @@ export default function ChatPage() {
   const { addToast, ToastContainer } = useToast()
   const [newMessage, setNewMessage] = useState('')
   const [sendingMessage, setSendingMessage] = useState(false)
-  const [sidebarView, setSidebarView] = useState<'users' | 'conversations'>('users')
+
+  const [teachers, setTeachers] = useState<any[]>([])
+
+  // Always call hooks in a stable order (do not conditionally call hooks)
+  const adminChatHook = useChat({ userId: admin?.id || '', userType: 'admin' })
+  const teacherChatHook = useTeacherChat({ userId: admin?.id || '' })
+
+  const chatHook = admin?.role === 'teacher' ? teacherChatHook : adminChatHook
 
   const {
+    allConversations,
     conversations,
     selectedConversation,
     messages,
@@ -32,24 +42,44 @@ export default function ChatPage() {
     selectConversation,
     sendMessage,
     searchConversations,
-  } = useChat({
-    userId: admin?.id || '',
-    userType: 'admin',
-  })
+  } = chatHook
 
   const { users: availableUsers, loading: usersLoading } = useAvailableUsers(
     admin?.id || '',
     'admin'
   )
 
+  // Fetch teachers directly for assignment dropdown
+  useEffect(() => {
+    const loadTeachers = async () => {
+      if (!admin?.id) return
+      if (admin?.role !== 'super_admin') {
+        setTeachers([])
+        return
+      }
+
+      try {
+        const allTeachers = await getUsersByRole('teacher')
+        setTeachers(allTeachers)
+      } catch (err) {
+        console.error('Error loading teachers:', err)
+        setTeachers([])
+      }
+    }
+    
+
+    loadTeachers()
+  }, [admin?.id, admin?.role])
+
   // Debug logging
   useEffect(() => {
     console.log('🔍 Admin Chat Debug - Admin User:', admin)
     console.log('🔍 Admin Chat Debug - Available Users:', availableUsers)
+    console.log('🔍 Admin Chat Debug - Teachers:', teachers)
     console.log('🔍 Admin Chat Debug - Users Loading:', usersLoading)
     console.log('🔍 Admin Chat Debug - Conversations:', conversations)
     console.log('🔍 Admin Chat Debug - Selected Conversation:', selectedConversation)
-  }, [admin, availableUsers, usersLoading, conversations, selectedConversation])
+  }, [admin, availableUsers, teachers, usersLoading, conversations, selectedConversation])
 
   useEffect(() => {
     if (error) {
@@ -92,6 +122,12 @@ export default function ChatPage() {
     if (!admin) return
 
     try {
+      const existing = allConversations.find((c) => c.studentId === studentId)
+      if (existing) {
+        selectConversation(existing.id)
+        return
+      }
+
       const conversationId = await createConversation(
         admin.id,
         studentId,
@@ -110,11 +146,39 @@ export default function ChatPage() {
         selectConversation(conversationId)
       }
       
-      setSidebarView('users')
       addToast(`Started conversation with ${studentName}`, 'success')
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : 'Failed to start conversation',
+        'error'
+      )
+    }
+  }
+
+  const handleAssignmentChange = async (conversationId: string, teacherId: string | null) => {
+    try {
+      const response = await fetch('/api/assign-conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversationId,
+          teacherId,
+          assignedBy: admin?.id,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        addToast(result.message, 'success')
+      } else {
+        addToast(result.message, 'error')
+      }
+    } catch (err) {
+      addToast(
+        err instanceof Error ? err.message : 'Failed to assign conversation',
         'error'
       )
     }
@@ -141,99 +205,181 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 h-full">
+    <div className="h-[calc(100vh-0px)] flex flex-col p-4 sm:p-6">
       <ToastContainer />
 
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-black">Chat</h1>
-        <p className="text-black mt-2">Communicate with students</p>
+      <div className="mb-4 sm:mb-6 sticky top-0 z-10 bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/80">
+        <div className="pt-1">
+          <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-3xl font-bold text-black">Chat</h1>
+          {admin?.role === 'super_admin' && (
+            <div className="flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+              <Crown className="h-4 w-4" />
+              Super Admin
+            </div>
+          )}
+          {admin?.role === 'teacher' && (
+            <div className="flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+              Teacher
+            </div>
+          )}
+          </div>
+          <p className="text-black mt-2">
+          {admin?.role === 'super_admin' 
+            ? 'Manage all conversations and assign to teachers' 
+            : admin?.role === 'teacher'
+            ? 'View and manage your assigned conversations'
+            : 'Communicate with students'
+          }
+          </p>
+        </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-160px)] overflow-hidden">
-        {/* Conversation List */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 lg:gap-6 overflow-hidden">
         <div className={`w-full lg:w-80 ${selectedConversation ? 'hidden lg:block' : ''}`}>
           <Card className="h-full">
             <CardContent className="p-4 h-full flex flex-col">
-              <div className="-m-4 mb-4 p-4 bg-[#f0f2f5] border-b border-gray-200 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-[#111b21]">Chats</h2>
-                  <p className="text-xs text-[#667781] mt-1">Select a student to view messages</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => setSidebarView('users')}
-                    className={`flex items-center gap-2 ${
-                      sidebarView === 'users'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-white hover:bg-gray-100 text-black border border-gray-200'
-                    }`}
-                  >
-                    <Plus className="h-4 w-4" />
-                    New
-                  </Button>
-                  <Button
-                    onClick={() => setSidebarView('conversations')}
-                    className={`hidden sm:flex items-center gap-2 ${
-                      sidebarView === 'conversations'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-white hover:bg-gray-100 text-black border border-gray-200'
-                    }`}
-                  >
-                    Recent
-                  </Button>
-                </div>
+              <div className="relative mb-4">
+            
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder={admin?.role === 'teacher' ? "Search assigned students..." : "Search students..."}
+                  value={searchQuery}
+                  onChange={(e) => searchConversations(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-[#f0f2f5] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00a884] focus:border-transparent"
+                />
               </div>
 
-              {sidebarView === 'users' ? (
-                // Available Users List
-                <div className="flex-1 overflow-y-auto">
-                  {usersLoading ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">Loading students...</p>
-                    </div>
-                  ) : availableUsers.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No students available</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {availableUsers.map((user) => (
-                        <div
-                          key={user.id}
-                          className="p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-black truncate">
-                                {user.name}
-                              </p>
-                              <p className="text-xs text-gray-500 truncate">
-                                {user.email}
-                              </p>
-                            </div>
-                            <Button
-                              onClick={() => handleStartConversation(user.id, user.name)}
-                              className="ml-2 bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                            >
-                              Chat
-                            </Button>
-                          </div>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {usersLoading && loading ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Loading chats...</p>
+                  </div>
+                ) : (
+                  (() => {
+                    const q = searchQuery.trim().toLowerCase()
+                    const conversationStudentIds = new Set(allConversations.map((c) => c.studentId))
+
+                    const remainingUsers = availableUsers
+                      .filter((u) => !conversationStudentIds.has(u.id))
+                      .filter((u) => {
+                        if (!q) return true
+                        return (
+                          u.name.toLowerCase().includes(q) ||
+                          u.email.toLowerCase().includes(q)
+                        )
+                      })
+                      .sort((a, b) => a.name.localeCompare(b.name))
+
+                    const hasAny = conversations.length > 0 || remainingUsers.length > 0
+
+                    if (!hasAny) {
+                      return (
+                        <div className="text-center py-8">
+                          <p className="text-gray-500">No chats found</p>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                // Conversations List
-                <ConversationList
-                  conversations={conversations}
-                  selectedId={selectedConversation?.id || null}
-                  onSelect={selectConversation}
-                  onSearch={searchConversations}
-                  loading={loading}
-                  searchQuery={searchQuery}
-                />
-              )}
+                      )
+                    }
+
+                    return (
+                      <div className="space-y-1">
+                        {conversations.map((conversation) => (
+                          <div
+                            key={conversation.id}
+                            onClick={() => selectConversation(conversation.id)}
+                            className={`p-3 rounded-xl cursor-pointer transition-colors border ${
+                              selectedConversation?.id === conversation.id
+                                ? 'bg-blue-50 border-blue-200'
+                                : 'border-transparent hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="relative shrink-0">
+                                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+                                  {conversation.studentName.charAt(0).toUpperCase()}
+                                </div>
+                                {conversation.assignedTeacherId && (
+                                  <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-purple-500 rounded-full border-2 border-white" title="Assigned"></div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-medium text-black truncate">
+                                    {conversation.studentName}
+                                  </p>
+                                  <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                                    {conversation.lastMessageTime.toLocaleDateString()}
+                                  </span>
+                                </div>
+                                {(() => {
+                                  const studentUser = availableUsers.find(
+                                    (u) => u.id === conversation.studentId
+                                  )
+                                  return studentUser?.email ? (
+                                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                                      {studentUser.email}
+                                    </p>
+                                  ) : null
+                                })()}
+                                <p className="text-sm text-gray-600 truncate mt-1">
+                                  {conversation.lastMessage || 'No messages yet'}
+                                </p>
+
+                                {/* Assignment Component - Only show for super admins */}
+                                {admin?.role === 'super_admin' && (
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <ConversationAssignment
+                                      conversation={conversation}
+                                      availableTeachers={teachers}
+                                      currentUserId={admin?.id || ''}
+                                      currentUserRole={admin?.role || ''}
+                                      onAssignmentChange={handleAssignmentChange}
+                                    />
+                                  </div>
+                                )}
+
+                                {/* Show assignment info for teachers */}
+                                {admin?.role === 'teacher' && conversation.assignedTeacherName && (
+                                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                    <span>Assigned to you</span>
+                                  </div>
+                                )}
+                              </div>
+                              {conversation.adminUnreadCount > 0 && (
+                                <div className="bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0">
+                                  {conversation.adminUnreadCount}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Only show "start new conversation" for non-teachers */}
+                        {admin?.role !== 'teacher' && remainingUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            onClick={() => handleStartConversation(user.id, user.name)}
+                            className="p-3 rounded-xl cursor-pointer transition-colors border border-transparent hover:bg-gray-50"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="relative flex-shrink-0">
+                                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+                                  {user.name.charAt(0).toUpperCase()}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-black truncate">{user.name}</p>
+                                <p className="text-xs text-gray-500 truncate mt-1">{user.email}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -245,7 +391,7 @@ export default function ChatPage() {
               {selectedConversation ? (
                 <>
                   {/* Chat Header */}
-                  <div className="p-4 border-b border-gray-200 bg-[#f0f2f5]">
+                  <div className="p-4 border-b border-gray-200 bg-[#f0f2f5] sticky top-0 z-10">
                     <div className="flex items-center gap-3">
                       <Button
                         variant="outline"
@@ -254,7 +400,7 @@ export default function ChatPage() {
                       >
                         Back
                       </Button>
-                      <div className="relative">
+                      <div className="relative bg-[#f0f2f5]">
                         <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
                           {selectedConversation.studentName.charAt(0).toUpperCase()}
                         </div>

@@ -9,7 +9,6 @@ interface ThoughtHistoryItem {
   content: string
   date: string
   adminName: string
-  adminId: string
 }
 
 
@@ -36,7 +35,6 @@ export function ThoughtHistory({ className, onThoughtAdded }: ThoughtHistoryProp
             content: thought.text,
             date: thought.publishDate,
             adminName: thought.createdBy?.name || 'Admin',
-            adminId: thought.createdBy?.uid || 'admin'
           }))
           const sortedByLatest = mappedThoughts.sort(
           (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -116,9 +114,6 @@ export function ThoughtHistory({ className, onThoughtAdded }: ThoughtHistoryProp
               <p className="text-gray-700 text-sm leading-relaxed italic">
                 "{truncateText(thought.content)}"
               </p>
-              <div className="mt-2 text-xs text-gray-400">
-                ID: {thought.adminId}
-              </div>
             </div>
           ))}
         </div>

@@ -15,6 +15,15 @@ export interface Conversation {
   studentUnreadCount: number
   createdAt: Date
   updatedAt: Date
+  // NEW ASSIGNMENT FIELDS
+  studentPublicId?: string
+  assignedTeacherId: string | null
+  assignedTeacherPublicId: string | null
+  assignedTeacherName: string | null
+  assignedBy: string | null
+  assignedAt: Date | null
+  status: 'unassigned' | 'assigned' | 'closed'
+  authorizedUserIds: string[]
 }
 
 export interface Message {

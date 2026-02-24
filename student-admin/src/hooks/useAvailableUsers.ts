@@ -7,6 +7,8 @@ export interface AvailableUser {
   id: string
   name: string
   email: string
+  role: 'admin' | 'student' | 'teacher' | 'super_admin'
+  publicId?: string
   avatar?: string
   hasConversation: boolean
 }
@@ -43,6 +45,8 @@ export const useAvailableUsers = (currentUserId: string, userType: 'admin' | 'st
           id: user.id,
           name: user.name,
           email: user.email,
+          role: user.role,
+          publicId: user.publicId,
           avatar: user.avatar,
           hasConversation: conversationUserIds.has(user.id),
         }))

@@ -9,7 +9,6 @@ interface Question {
   question: string
   date: string
   adminName: string
-  adminId: string
   status: 'published' | 'draft'
 }
 
@@ -27,7 +26,6 @@ interface QuestionHistoryItem {
   date: string
   questions: Question[]
   adminName: string
-  adminId: string
 }
 
 interface QuestionHistoryProps {
@@ -61,7 +59,6 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
             ...question,
             question: question.text, // Map text field to question field
             adminName: question.createdBy?.name || 'Admin User',
-            adminId: question.createdBy?.uid || 'admin-123',
             status: question.status === 'draft' ? 'draft' : 'published'
           }
           
@@ -73,7 +70,6 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
               date,
               questions: [mappedQuestion],
               adminName: question.createdBy?.name || 'Admin User',
-              adminId: question.createdBy?.uid || 'admin-123'
             })
           }
           

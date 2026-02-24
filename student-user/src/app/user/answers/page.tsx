@@ -81,6 +81,11 @@ export default function AnswersPage() {
           console.log('Questions loaded:', questions.length)
         }
 
+        const validQuestionIds = new Set<string>()
+        for (const q of questions) {
+          if (q?.id) validQuestionIds.add(q.id)
+        }
+
         const questionTextById = new Map<string, string>()
         for (const q of questions) {
           if (q?.id && typeof q.text === 'string') {
@@ -89,7 +94,9 @@ export default function AnswersPage() {
         }
         
         // Transform and enrich answers data
-        const userAnswers: UserAnswer[] = studentAnswers.map((answer: any) => {
+        const userAnswers: UserAnswer[] = studentAnswers
+          .filter((answer: any) => !!answer?.questionId && validQuestionIds.has(answer.questionId))
+          .map((answer: any) => {
           const questionText = questionTextById.get(answer.questionId)
           return {
             date: answer.submittedAt?.split('T')[0] || new Date().toISOString().split('T')[0],
@@ -247,12 +254,6 @@ export default function AnswersPage() {
 
   const stats = {
     totalAnswers: answers.length,
-    thisWeek: answers.filter(a => {
-      const answerDate = new Date(a.date)
-      const weekAgo = new Date()
-      weekAgo.setDate(weekAgo.getDate() - 7)
-      return answerDate >= weekAgo
-    }).length,
     thisMonth: answers.filter(a => {
       const answerDate = new Date(a.date)
       const currentMonth = new Date().getMonth()
@@ -271,7 +272,7 @@ export default function AnswersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 ">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 ">
         <Card >
           <CardContent className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between ">
@@ -281,20 +282,6 @@ export default function AnswersPage() {
               </div>
               <div className="p-3 bg-blue-50 rounded-lg">
                 <FileText className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-black">This Week</p>
-                <p className="text-2xl font-bold text-black mt-1">{stats.thisWeek}</p>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg">
-                <Calendar className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -316,7 +303,7 @@ export default function AnswersPage() {
       </div>
 
       {/* Search and Actions */}
-      <Card className='bg-white p-8'>
+      <Card className='bg-gray-100 p-8 '>
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">

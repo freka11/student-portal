@@ -43,6 +43,15 @@ export const getConversationById = async (conversationId: string): Promise<Conve
       studentUnreadCount: data.studentUnreadCount || 0,
       createdAt: data.createdAt?.toDate() || new Date(),
       updatedAt: data.updatedAt?.toDate() || new Date(),
+      // NEW ASSIGNMENT FIELDS
+      studentPublicId: data.studentPublicId,
+      assignedTeacherId: data.assignedTeacherId || null,
+      assignedTeacherPublicId: data.assignedTeacherPublicId || null,
+      assignedTeacherName: data.assignedTeacherName || null,
+      assignedBy: data.assignedBy || null,
+      assignedAt: data.assignedAt?.toDate() || null,
+      status: data.status || 'unassigned',
+      authorizedUserIds: data.authorizedUserIds || [data.adminId, data.studentId],
     }
   } catch (error) {
     console.error('Error fetching conversation by id:', error)
@@ -99,10 +108,17 @@ export const subscribeToConversations = (
 ) => {
   const conversationsRef = collection(db, 'conversations')
 
-  const q =
-    userType === 'admin'
-      ? query(conversationsRef, where('adminId', '==', userId), orderBy('updatedAt', 'desc'))
-      : query(conversationsRef, where('studentId', '==', userId), orderBy('updatedAt', 'desc'))
+  // Role-based query logic
+  let q
+  if (userType === 'admin') {
+    // For admins, we'll implement role-based filtering
+    // For now, show all conversations (super admin behavior)
+    // Later we can filter by assignedTeacherId for teachers
+    q = query(conversationsRef, orderBy('updatedAt', 'desc'))
+  } else {
+    // Students only see their own conversations
+    q = query(conversationsRef, where('studentId', '==', userId), orderBy('updatedAt', 'desc'))
+  }
 
   return onSnapshot(q, (snapshot) => {
     const conversations: Conversation[] = []
@@ -124,6 +140,15 @@ export const subscribeToConversations = (
         studentUnreadCount: data.studentUnreadCount || 0,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
+        // NEW ASSIGNMENT FIELDS
+        studentPublicId: data.studentPublicId,
+        assignedTeacherId: data.assignedTeacherId || null,
+        assignedTeacherPublicId: data.assignedTeacherPublicId || null,
+        assignedTeacherName: data.assignedTeacherName || null,
+        assignedBy: data.assignedBy || null,
+        assignedAt: data.assignedAt?.toDate() || null,
+        status: data.status || 'unassigned',
+        authorizedUserIds: data.authorizedUserIds || [data.adminId, data.studentId],
       })
     })
 

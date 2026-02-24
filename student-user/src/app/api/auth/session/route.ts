@@ -2,8 +2,14 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { adminAuth, adminFirestore } from '@/lib/firebase-admin'
 
-function roleFromEmail(email: string): 'student' | 'admin' {
-  if (email.includes('@admin.com')) return 'admin'
+function roleFromEmail(email: string): 'student' | 'admin' | 'teacher' | 'super_admin' {
+  if (email.includes('@admin.com')) {
+    // PROMOTE SPECIFIC USERS TO SUPER ADMIN
+    if (email.includes('teacher1@admin.com') || email.includes('teacher2@admin.com')) {
+      return 'super_admin'
+    }
+    return 'admin'
+  }
   return 'student'
 }
 
@@ -12,13 +18,17 @@ async function verifyAndBuildSessionUser(token: string) {
   const email = (decoded as any).email
   if (!email) return null
 
-  let role: 'student' | 'admin' = roleFromEmail(email)
+  let role: 'student' | 'admin' | 'teacher' | 'super_admin' = roleFromEmail(email)
+  let publicId: string | undefined
 
   try {
     const userDoc = await adminFirestore.collection('users').doc(decoded.uid).get()
     const userData = userDoc.exists ? (userDoc.data() as any) : null
-    if (userData?.role === 'admin' || userData?.role === 'student') {
+    if (userData?.role) {
       role = userData.role
+    }
+    if (userData?.publicId) {
+      publicId = userData.publicId
     }
   } catch {
     // If Firestore read fails, fall back to email domain
@@ -28,6 +38,7 @@ async function verifyAndBuildSessionUser(token: string) {
     uid: decoded.uid,
     email,
     role,
+    publicId,
     permissions: role === 'admin' ? ['read', 'write', 'delete'] : ['read', 'write'],
   }
 }
@@ -47,12 +58,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    console.log('✅ Session created for:', userData.email, 'Role:', userData.role)
+    console.log('✅ Session created for:', userData.email, 'Role:', userData.role, 'PublicId:', userData.publicId)
 
     const sessionData = {
       uid: userData.uid,
       email: userData.email,
       role: userData.role,
+      publicId: userData.publicId,
       permissions: userData.permissions
     }
 
@@ -94,13 +106,17 @@ export async function GET() {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
-    let role: 'student' | 'admin' = roleFromEmail(email)
+    let role: 'student' | 'admin' | 'teacher' | 'super_admin' = roleFromEmail(email)
+    let publicId: string | undefined
 
     try {
       const userDoc = await adminFirestore.collection('users').doc(decoded.uid).get()
       const userData = userDoc.exists ? (userDoc.data() as any) : null
-      if (userData?.role === 'admin' || userData?.role === 'student') {
+      if (userData?.role) {
         role = userData.role
+      }
+      if (userData?.publicId) {
+        publicId = userData.publicId
       }
     } catch {
       // If Firestore read fails, fall back to email domain
@@ -110,6 +126,7 @@ export async function GET() {
       uid: decoded.uid,
       email,
       role,
+      publicId,
       permissions: role === 'admin' ? ['read', 'write', 'delete'] : ['read', 'write'],
     }
     

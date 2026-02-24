@@ -22,6 +22,10 @@ import { db } from './firebase-client'
 import { Conversation, Message, SendMessageParams } from '@/types/chat'
 import { generateConversationId } from './firestore-refs'
 
+type StaffSenderType = 'admin' | 'teacher' | 'super_admin'
+type SenderType = StaffSenderType | 'student'
+type UserType = StaffSenderType | 'student'
+
 export const getConversationById = async (conversationId: string): Promise<Conversation | null> => {
   try {
     const conversationRef = doc(db, 'conversations', conversationId)
@@ -44,6 +48,15 @@ export const getConversationById = async (conversationId: string): Promise<Conve
       studentUnreadCount: data.studentUnreadCount || 0,
       createdAt: data.createdAt?.toDate() || new Date(),
       updatedAt: data.updatedAt?.toDate() || new Date(),
+      // NEW ASSIGNMENT FIELDS
+      studentPublicId: data.studentPublicId,
+      assignedTeacherId: data.assignedTeacherId || null,
+      assignedTeacherPublicId: data.assignedTeacherPublicId || null,
+      assignedTeacherName: data.assignedTeacherName || null,
+      assignedBy: data.assignedBy || null,
+      assignedAt: data.assignedAt?.toDate() || null,
+      status: data.status || 'unassigned',
+      authorizedUserIds: data.authorizedUserIds || [data.adminId, data.studentId],
     }
   } catch (error) {
     console.error('Error fetching conversation by id:', error)
@@ -101,10 +114,17 @@ export const subscribeToConversations = (
 ) => {
   const conversationsRef = collection(db, 'conversations')
 
-  const q =
-    userType === 'admin'
-      ? query(conversationsRef, where('adminId', '==', userId), orderBy('updatedAt', 'desc'))
-      : query(conversationsRef, where('studentId', '==', userId), orderBy('updatedAt', 'desc'))
+  // Role-based query logic
+  let q
+  if (userType === 'admin') {
+    // For admins, we'll implement role-based filtering
+    // For now, show all conversations (super admin behavior)
+    // Later we can filter by assignedTeacherId for teachers
+    q = query(conversationsRef, orderBy('updatedAt', 'desc'))
+  } else {
+    // Students only see their own conversations
+    q = query(conversationsRef, where('studentId', '==', userId), orderBy('updatedAt', 'desc'))
+  }
 
   return onSnapshot(q, (snapshot) => {
     const conversations: Conversation[] = []
@@ -126,6 +146,64 @@ export const subscribeToConversations = (
         studentUnreadCount: data.studentUnreadCount || 0,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
+        // NEW ASSIGNMENT FIELDS
+        studentPublicId: data.studentPublicId,
+        assignedTeacherId: data.assignedTeacherId || null,
+        assignedTeacherPublicId: data.assignedTeacherPublicId || null,
+        assignedTeacherName: data.assignedTeacherName || null,
+        assignedBy: data.assignedBy || null,
+        assignedAt: data.assignedAt?.toDate() || null,
+        status: data.status || 'unassigned',
+        authorizedUserIds: data.authorizedUserIds || [data.adminId, data.studentId],
+      })
+    })
+
+    callback(conversations)
+  })
+}
+
+// New function for teacher-specific conversation filtering
+export const subscribeToTeacherConversations = (
+  userId: string,
+  callback: (conversations: Conversation[]) => void
+) => {
+  const conversationsRef = collection(db, 'conversations')
+
+  // Teachers only see conversations assigned to them
+  const q = query(
+    conversationsRef, 
+    where('assignedTeacherId', '==', userId)
+  )
+
+  return onSnapshot(q, (snapshot) => {
+    const conversations: Conversation[] = []
+
+    snapshot.forEach((doc) => {
+      const data = doc.data()
+      conversations.push({
+        id: doc.id,
+        adminId: data.adminId,
+        studentId: data.studentId,
+        adminName: data.adminName,
+        studentName: data.studentName,
+        adminAvatar: data.adminAvatar,
+        studentAvatar: data.studentAvatar,
+        lastMessage: data.lastMessage,
+        lastMessageTime: data.lastMessageTime?.toDate() || new Date(),
+        lastMessageSenderId: data.lastMessageSenderId,
+        adminUnreadCount: data.adminUnreadCount || 0,
+        studentUnreadCount: data.studentUnreadCount || 0,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+        // NEW ASSIGNMENT FIELDS
+        studentPublicId: data.studentPublicId,
+        assignedTeacherId: data.assignedTeacherId || null,
+        assignedTeacherPublicId: data.assignedTeacherPublicId || null,
+        assignedTeacherName: data.assignedTeacherName || null,
+        assignedBy: data.assignedBy || null,
+        assignedAt: data.assignedAt?.toDate() || null,
+        status: data.status || 'unassigned',
+        authorizedUserIds: data.authorizedUserIds || [data.adminId, data.studentId],
       })
     })
 
@@ -148,8 +226,8 @@ export const getConversations = async (
     
     // Query based on user type
     const q = userType === 'admin'
-      ? query(conversationsRef, where('adminId', '==', userId), orderBy('updatedAt', 'desc'))
-      : query(conversationsRef, where('studentId', '==', userId), orderBy('updatedAt', 'desc'))
+      ? query(conversationsRef, where('adminId', '==', userId))
+      : query(conversationsRef, where('studentId', '==', userId))
 
     const snapshot = await getDocs(q)
     const conversations: Conversation[] = []
@@ -171,6 +249,15 @@ export const getConversations = async (
         studentUnreadCount: data.studentUnreadCount || 0,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
+        // NEW ASSIGNMENT FIELDS
+        studentPublicId: data.studentPublicId,
+        assignedTeacherId: data.assignedTeacherId || null,
+        assignedTeacherPublicId: data.assignedTeacherPublicId || null,
+        assignedTeacherName: data.assignedTeacherName || null,
+        assignedBy: data.assignedBy || null,
+        assignedAt: data.assignedAt?.toDate?.() || null,
+        status: data.status || 'unassigned',
+        authorizedUserIds: data.authorizedUserIds || [data.adminId, data.studentId],
       })
     })
 
@@ -236,7 +323,7 @@ export const getMessages = async (
 export const markAsRead = async (
   conversationId: string,
   userId: string,
-  userType: 'admin' | 'student'
+  userType: UserType
 ): Promise<void> => {
   try {
     const messagesRef = collection(db, 'conversations', conversationId, 'messages')
@@ -263,7 +350,8 @@ export const markAsRead = async (
 
     // Update unread count in conversation
     const conversationRef = doc(db, 'conversations', conversationId)
-    const unreadCountField = userType === 'admin' ? 'adminUnreadCount' : 'studentUnreadCount'
+    // Staff users clear adminUnreadCount; students clear studentUnreadCount
+    const unreadCountField = userType === 'student' ? 'studentUnreadCount' : 'adminUnreadCount'
     
     await updateDoc(conversationRef, {
       [unreadCountField]: 0,
@@ -341,11 +429,12 @@ export const updateLastMessage = async (
   conversationId: string,
   message: string,
   senderId: string,
-  userType: 'admin' | 'student'
+  userType: UserType
 ): Promise<void> => {
   try {
     const conversationRef = doc(db, 'conversations', conversationId)
-    const unreadCountField = userType === 'admin' ? 'studentUnreadCount' : 'adminUnreadCount'
+    // Students increment adminUnreadCount; staff increment studentUnreadCount
+    const unreadCountField = userType === 'student' ? 'adminUnreadCount' : 'studentUnreadCount'
 
     await updateDoc(conversationRef, {
   lastMessage: message,

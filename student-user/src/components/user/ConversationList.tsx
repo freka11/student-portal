@@ -10,6 +10,7 @@ interface ConversationListProps {
   onSearch: (query: string) => void
   loading: boolean
   searchQuery: string
+  getSecondaryText?: (conversation: Conversation) => string | null | undefined
 }
 
 export const ConversationList = ({
@@ -19,6 +20,7 @@ export const ConversationList = ({
   onSearch,
   loading,
   searchQuery,
+  getSecondaryText,
 }: ConversationListProps) => {
   return (
     <div className="h-full flex flex-col">
@@ -71,6 +73,11 @@ export const ConversationList = ({
                         {formatTime(conversation.lastMessageTime)}
                       </span>
                     </div>
+                    {!!getSecondaryText?.(conversation) && (
+                      <p className="text-xs text-gray-500 truncate mt-0.5">
+                        {getSecondaryText(conversation)}
+                      </p>
+                    )}
                     <p className="text-sm text-gray-600 truncate mt-1">
                       {conversation.lastMessage || 'No messages yet'}
                     </p>

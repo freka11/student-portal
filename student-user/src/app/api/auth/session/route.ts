@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     const sessionCookie = await adminAuth.createSessionCookie(token, { expiresIn })
 
     const cookieStore = await cookies()
-    cookieStore.set('session', sessionCookie, {
+    cookieStore.set('user_session', sessionCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
 
 export async function GET() {
   const cookieStore = await cookies()
-  const sessionToken = cookieStore.get('session')?.value
+  const sessionToken = cookieStore.get('user_session')?.value
 
   if (!sessionToken) {
     return NextResponse.json({ error: 'No session' }, { status: 401 })

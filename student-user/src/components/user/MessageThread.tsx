@@ -70,6 +70,8 @@ export const MessageThread = ({
           })}
           isSent={message.senderId === currentUserId}
           isDelivered={message.deliveryStatus === 'delivered'}
+          senderName={message.senderName}
+          isCurrentUser={message.senderId === currentUserId}
         />
       ))}
       <div ref={messagesEndRef} />

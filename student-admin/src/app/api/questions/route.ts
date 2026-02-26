@@ -2,6 +2,60 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { adminAuth, adminFirestore } from '@/lib/firebase-admin'
 
+async function verifyAdminSessionToken(token: string) {
+  try {
+    return await adminAuth.verifyIdToken(token)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+
+    // Some environments store a Firebase *session cookie* in `session`.
+    // Session cookies have issuer `https://session.firebase.google.com/<projectId>`.
+    // In that case, verify using `verifySessionCookie`.
+    if (msg.includes('incorrect "iss"') || msg.includes('session.firebase.google.com')) {
+      return await adminAuth.verifySessionCookie(token, true)
+    }
+
+    throw err
+  }
+}
+
+function inferRoleFromEmail(email?: string | null): 'admin' | 'super_admin' | 'student' {
+  if (!email) return 'student'
+  if (email.includes('@admin.com')) {
+    if (email.includes('teacher1@admin.com') || email.includes('teacher2@admin.com')) {
+      return 'super_admin'
+    }
+    return 'admin'
+  }
+  return 'student'
+}
+
+async function resolveUserData(uid: string, email?: string | null) {
+  const directSnap = await adminFirestore.collection('users').doc(uid).get()
+  if (directSnap.exists) return directSnap.data() as any
+
+  // Fallback: some environments store users under a different doc id.
+  const byUidSnap = await adminFirestore
+    .collection('users')
+    .where('uid', '==', uid)
+    .limit(1)
+    .get()
+
+  if (!byUidSnap.empty) return byUidSnap.docs[0].data() as any
+
+  if (email) {
+    const byEmailSnap = await adminFirestore
+      .collection('users')
+      .where('email', '==', email)
+      .limit(1)
+      .get()
+
+    if (!byEmailSnap.empty) return byEmailSnap.docs[0].data() as any
+  }
+
+  return null
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -38,20 +92,36 @@ export async function POST(request: NextRequest) {
   try {
     const newQuestionData = await request.json()
 
+    // Validate required fields
+    if (!newQuestionData.question || typeof newQuestionData.question !== 'string' || !newQuestionData.question.trim()) {
+      return NextResponse.json(
+        { success: false, message: 'Question text is required' },
+        { status: 400 }
+      )
+    }
+
     const cookieStore = await cookies()
-    const sessionToken = cookieStore.get('session')?.value
+    const sessionToken =
+      cookieStore.get('admin_session')?.value || cookieStore.get('session')?.value
     if (!sessionToken) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
     }
 
-    const decoded = await adminAuth.verifyIdToken(sessionToken)
-    const userRole = (decoded as any)?.role || (decoded as any)?.customClaims?.role
-    if (userRole !== 'admin') {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
-    }
+    const decoded = await verifyAdminSessionToken(sessionToken)
+    const userData = await resolveUserData(decoded.uid, decoded.email)
 
-    const userSnap = await adminFirestore.collection('users').doc(decoded.uid).get()
-    const userData = userSnap.exists ? (userSnap.data() as any) : null
+    const effectiveRole: string | undefined =
+      userData?.role ||
+      (decoded as any)?.role ||
+      (decoded as any)?.customClaims?.role ||
+      inferRoleFromEmail(decoded.email)
+
+    if (effectiveRole !== 'admin' && effectiveRole !== 'super_admin') {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden', role: effectiveRole },
+        { status: 403 }
+      )
+    }
     const resolvedName =
       (typeof userData?.name === 'string' && userData.name.trim())
         ? userData.name.trim()
@@ -63,7 +133,7 @@ export async function POST(request: NextRequest) {
     
     // Add question to Firestore with student audience
     const questionData = {
-      text: newQuestionData.question,
+      text: String(newQuestionData.question).trim(),
       status: newQuestionData.status || 'published', // Use status from frontend
       deleted: false,
       createdBy: {
@@ -74,12 +144,23 @@ export async function POST(request: NextRequest) {
       publishDate: new Date().toISOString().split('T')[0]
     }
     
-    await adminFirestore.collection('questions').add(questionData)
+    const docRef = await adminFirestore.collection('questions').add(questionData)
     
-    return NextResponse.json({ success: true, message: 'Question saved successfully' })
+    return NextResponse.json({
+      success: true,
+      message: 'Question saved successfully',
+      id: docRef.id,
+    })
   } catch (error) {
     console.error('Error saving question:', error)
-    return NextResponse.json({ success: false, message: 'Failed to save question' }, { status: 500 })
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Failed to save question',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    )
   }
 }
 

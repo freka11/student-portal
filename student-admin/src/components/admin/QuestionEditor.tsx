@@ -79,7 +79,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
       id: Date.now().toString(),
       date: today.toISOString().split('T')[0], // YYYY-MM-DD format
       questions,
-      adminName: admin?.name || 'Admin',
+      adminName: admin?.name || 'Admin default',
     }
   }
 

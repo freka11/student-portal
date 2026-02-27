@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
 import { Lightbulb, Calendar, User } from 'lucide-react'
-
+import { useAdminUser } from '@/hooks/useAdminUser'
 interface ThoughtHistoryItem {
   id: string
   content: string
@@ -20,12 +20,14 @@ interface ThoughtHistoryProps {
 export function ThoughtHistory({ className, onThoughtAdded }: ThoughtHistoryProps) {
   const [thoughts, setThoughts] = useState<ThoughtHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
+const { admin, ready } = useAdminUser()
 
   // Load thoughts from API
   useEffect(() => {
     const loadThoughts = async () => {
       try {
-        const res = await fetch('/api/thoughts?date=all')
+        const { thoughts } = await import('@/lib/api')
+        const res = await thoughts.get('all')
         if (res.ok) {
           const apiThoughts: any[] = await res.json()
           
@@ -49,9 +51,10 @@ export function ThoughtHistory({ className, onThoughtAdded }: ThoughtHistoryProp
         setLoading(false)
       }
     }
-
+  if (!ready) return
+  if (!admin) return
     loadThoughts()
-  }, [])
+  }, [ready, admin])
 
   // Listen for new thoughts
   useEffect(() => {

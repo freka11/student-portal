@@ -12,7 +12,7 @@ export class UserService {
   private usersCol() {
     return getFirestore().collection('users')
   }
-
+ 
   async getByUid(uid: string): Promise<UserRecord | null> {
     const snap = await this.usersCol().doc(uid).get()
     if (!snap.exists) return null

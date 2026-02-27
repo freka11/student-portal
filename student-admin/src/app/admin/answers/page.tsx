@@ -36,11 +36,12 @@ export default function AnswersPage() {
     const loadData = async () => {
       try {
         // Load answers from Firebase API
-        const answersResponse = await fetch('/api/answers')
+        const { answers, questions } = await import('@/lib/api')
+        const answersResponse = await answers.get()
         const answersData = await answersResponse.json()
         
         // Load questions to get question text
-        const questionsResponse = await fetch('/api/questions?date=all')
+        const questionsResponse = await questions.get('all')
         const questionsData = await questionsResponse.json()
         
         setAnswers(answersData)
@@ -101,9 +102,8 @@ export default function AnswersPage() {
     if (!confirm('Are you sure you want to delete this answer?')) return
 
     try {
-      const response = await fetch(`/api/answers?id=${answerId}`, {
-        method: 'DELETE',
-      })
+      const { answers } = await import('@/lib/api')
+      const response = await answers.delete(answerId)
 
       if (response.ok) {
         setAnswers(prev => prev.filter(a => a.id !== answerId))

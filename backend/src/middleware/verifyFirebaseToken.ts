@@ -1,10 +1,12 @@
 import type { Request, Response, NextFunction } from 'express'
-import { getAuth } from '../config/firebase'
+import { verifyToken, resolveUserData } from '../lib/authUtils'
 
 export type AuthenticatedUser = {
   uid: string
   email?: string
-  role?: string
+  name: string
+  role: string
+  publicId?: string
   claims?: Record<string, unknown>
 }
 
@@ -26,12 +28,20 @@ export async function verifyFirebaseToken(req: Request, res: Response, next: Nex
       return res.status(401).json({ success: false, message: 'Missing Authorization token' })
     }
 
-    const decoded = await getAuth().verifyIdToken(token)
+    const decoded = await verifyToken(token)
+    if (!decoded) {
+      return res.status(401).json({ success: false, message: 'Invalid token' })
+    }
+
+    const userData = await resolveUserData(decoded.uid, decoded.email)
+
     req.user = {
       uid: decoded.uid,
       email: decoded.email,
-      role: (decoded as any)?.role || (decoded as any)?.customClaims?.role,
-      claims: decoded as any,
+      name: userData?.name ?? decoded.email?.split('@')[0] ?? 'User',
+      role: userData?.role ?? 'student',
+      publicId: userData?.publicId,
+      claims: {},
     }
 
     return next()

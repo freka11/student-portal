@@ -102,16 +102,11 @@ export default function SignupPage() {
         { merge: true }
       )
 
-      // Create session via API (non-blocking)
+      // Create session via backend API
       let sessionData: any = null
       try {
-        const sessionResponse = await fetch('/api/auth/session', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
+        const { authSessionPost } = await import('@/lib/api')
+        const sessionResponse = await authSessionPost(token)
         if (!sessionResponse.ok) {
           addToast('Session creation failed. Please try again.', 'error')
           return

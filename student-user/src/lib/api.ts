@@ -2,13 +2,13 @@
  * API client for backend. All admin API calls go through this.
  * Set NEXT_PUBLIC_API_BASE_URL to point to backend (default: http://localhost:4000)
  */
-import { getAdminIdToken } from './auth'
+import { getStudentIdToken } from './auth'
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000'
 const ADMIN_PREFIX = '/api/admin'
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  const token = await getAdminIdToken()
+  const token = await getStudentIdToken()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
   return headers

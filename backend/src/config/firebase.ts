@@ -1,7 +1,9 @@
 import { config } from 'dotenv'
 import admin from 'firebase-admin'
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const serviceAccount = require('./serviceacount.json')
 
-config() // loads .env automatically
+config() // loads .env automatically (optionally, for other settings)
 
 let app: admin.app.App | null = null
 
@@ -13,20 +15,8 @@ export function getFirebaseAdminApp() {
     return app
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
-
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error('Missing Firebase environment variables')
-  }
-
   app = admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
+    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
   })
 
   return app

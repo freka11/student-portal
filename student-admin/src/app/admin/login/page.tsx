@@ -76,14 +76,9 @@ export default function LoginPage() {
         // Create session via API (non-blocking)
         let sessionData: any = null
         try {
-          const sessionResponse = await fetch('/api/auth/session', {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          })
-          if (sessionResponse.ok) {
+          const { authSessionPost } = await import('@/lib/api')
+          const sessionResponse = await authSessionPost(token)
+          if (sessionResponse?.ok) {
             sessionData = await sessionResponse.json()
           }
         } catch {

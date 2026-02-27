@@ -1,13 +1,12 @@
 'use client'
-  import { useAdminUser } from '@/hooks/useAdminUser'
+
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { Lightbulb, HelpCircle, Edit, Users, MessageSquare } from 'lucide-react'
-
-
+import { useAdminUser } from '@/hooks/useAdminUser'
 interface Thought {
   id: string
   text: string
@@ -39,7 +38,7 @@ interface AdminUser {
   name: string
 }
 
-export default function Dashboard() {
+export default function () {
   const [todayThought, setTodayThought] = useState<Thought | null>(null)
   const [todayQuestions, setTodayQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,38 +61,36 @@ export default function Dashboard() {
     const loadTodayContent = async () => {
       try {
         const today = new Date().toISOString().split('T')[0]
-        
+
+        const { thoughts, questions: questionsApi } = await import('@/lib/api')
         // Load thoughts
-        const thoughtsResponse = await fetch('/api/thoughts')
+        const thoughtsResponse = await thoughts.get()
         if (!thoughtsResponse.ok) {
           throw new Error(`Failed to fetch thoughts: ${thoughtsResponse.status}`)
         }
         const thoughtsData = await thoughtsResponse.json()
-        
-        // Ensure thoughtsData is an array
+
         const thoughtsArray = Array.isArray(thoughtsData) ? thoughtsData : []
         const todayThought = thoughtsArray.find((thought: any) => thought.publishDate === today)
         setTodayThought(todayThought || null)
-        
+
         // Load questions
-        const questionsResponse = await fetch('/api/questions')
+        const questionsResponse = await questionsApi.get()
         if (!questionsResponse.ok) {
           throw new Error(`Failed to fetch questions: ${questionsResponse.status}`)
         }
         const questionsData = await questionsResponse.json()
-        
-        // Ensure questionsData is an array
+
         const questionsArray = Array.isArray(questionsData) ? questionsData : []
-        // API returns individual questions, filter for today's and map to correct structure
         const todayQuestions = questionsArray
           .filter((q: any) => q.publishDate === today)
           .map((q: any) => ({
             ...q,
-            question: q.text, // Map text field to question field
+            question: q.text,
           }))
         setTodayQuestions(todayQuestions)
       } catch (error) {
-        console.error('Failed to load today\'s content:', error)
+        console.error("Failed to load today's content:", error)
       } finally {
         setLoading(false)
       }

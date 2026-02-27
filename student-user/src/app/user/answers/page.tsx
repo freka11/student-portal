@@ -40,7 +40,8 @@ export default function AnswersPage() {
   const loadAnswers = async () => {
     try {
       // Load answers from Firebase API
-      const answersResponse = await fetch('/api/answers', { credentials: 'include' })
+      const { answers, questions } = await import('@/lib/api')
+      const answersResponse = await answers.get()
       if (answersResponse.ok) {
         const answersData = await answersResponse.json()
 
@@ -74,7 +75,7 @@ export default function AnswersPage() {
         }
         
         // Load all questions to get question text (only once)
-        const questionsResponse = await fetch('/api/questions?date=all')
+        const questionsResponse = await questions.get('all')
         let questions: Question[] = []
         if (questionsResponse.ok) {
           questions = await questionsResponse.json()
@@ -137,25 +138,16 @@ export default function AnswersPage() {
       console.log('Submitting test answer...')
       
       // First get a question ID to use
-      const questionsResponse = await fetch('/api/questions?date=all')
+      const { questions, answers } = await import('@/lib/api')
+      const questionsResponse = await questions.get('all')
       if (questionsResponse.ok) {
-        const questions = await questionsResponse.json()
-        if (questions.length > 0) {
-          const testQuestion = questions[0]
+        const questionsData = await questionsResponse.json()
+        if (questionsData.length > 0) {
+          const testQuestion = questionsData[0]
           
-          const testData = {
-            studentId: 'test_student_001',
-            studentName: 'Test Student',
+          const response = await answers.post({
             questionId: testQuestion.id,
             answer: `This is a test answer submitted at ${new Date().toLocaleString()} to verify the API works correctly.`
-          }
-          
-          const response = await fetch('/api/answers', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(testData)
           })
           
           if (response.ok) {

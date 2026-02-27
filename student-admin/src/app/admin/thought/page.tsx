@@ -36,13 +36,14 @@ function ThoughtPageContent() {
       console.log('Loading thought for date:', today)
 
       // Try to fetch from API first
-      const res = await fetch('/api/thoughts')
+      const { thoughts } = await import('@/lib/api')
+      const res = await thoughts.get('all')
       if (res.ok) {
-        const thoughts: any[] = await res.json()
+        const thoughtsData: any[] = await res.json()
         console.log('All thoughts from API:', thoughts)
 
         // Map API data structure to frontend interface
-        const mappedThoughts = thoughts.map(thought => ({
+        const mappedThoughts = thoughtsData.map(thought => ({
           id: thought.id,
           content: thought.text,
           date: thought.publishDate,
@@ -134,9 +135,8 @@ function ThoughtPageContent() {
 
     try {
       console.log('Deleting thought with ID:', currentThought.id)
-      const res = await fetch(`/api/thoughts?id=${currentThought.id}`, {
-        method: 'DELETE',
-      })
+      const { thoughts } = await import('@/lib/api')
+      const res = await thoughts.delete(currentThought.id)
 
       console.log('Delete response status:', res.status)
       console.log('Delete response ok:', res.ok)

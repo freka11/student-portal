@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
 import { HelpCircle, Calendar, User, Plus, Trash2, Users, Search, X } from 'lucide-react'
+import { useAdminUser } from '@/hooks/useAdminUser'
 
 interface Question {
   id: string
@@ -37,18 +38,29 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
   const [studentAnswers, setStudentAnswers] = useState<StudentAnswer[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const { admin, ready } = useAdminUser()
 
   useEffect(() => {
-    // Load data from JSON files
+    if (!ready || !admin) {
+      if (ready && !admin) setLoading(false)
+      return
+    }
     const loadData = async () => {
       try {
         // Load questions history
-        const questionsResponse = await fetch('/api/questions?date=all')
-        const questionsData = await questionsResponse.json()
+        const { questions, answers } = await import('@/lib/api')
+        const questionsResponse = await questions.get('all')
+        const questionsDataRaw = await questionsResponse.json()
+        const questionsData = questionsResponse.ok && Array.isArray(questionsDataRaw)
+          ? questionsDataRaw
+          : []
         
         // Load student answers
-        const answersResponse = await fetch('/api/answers')
-        const answersData = await answersResponse.json()
+        const answersResponse = await answers.get()
+        const answersDataRaw = await answersResponse.json()
+        const answersData = answersResponse.ok && Array.isArray(answersDataRaw)
+          ? answersDataRaw
+          : []
         
         // Group individual questions by date to match QuestionHistoryItem structure
         const groupedByDate = questionsData.reduce((acc: any[], question: any) => {
@@ -93,7 +105,7 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
     }
 
     loadData()
-  }, [])
+  }, [ready, admin])
 
   const getAnswersForQuestion = (questionId: string) => {
     return studentAnswers.filter(answer => answer.questionId === questionId)

@@ -1,4 +1,5 @@
 import express from 'express'
+import cors from 'cors'
 import { createAuthRouter } from './routes/auth.routes'
 import { createAdminRouter } from './routes/admin.routes'
 import { createStudentRouter } from './routes/student.routes'
@@ -6,6 +7,18 @@ import { errorHandler } from './middleware/errorHandler'
 
 export function createApp() {
   const app = express()
+
+  app.use(
+    cors({
+      origin: process.env.CORS_ORIGIN?.split(',') || [
+        'http://localhost:3000',
+        'http://localhost:3001',
+      ],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      credentials: false,
+    })
+  )
 
   app.use(express.json())
 

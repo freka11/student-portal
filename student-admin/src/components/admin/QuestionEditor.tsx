@@ -37,7 +37,8 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        const response = await fetch('/api/questions')
+        const { questions } = await import('@/lib/api')
+        const response = await questions.get()
         if (response.ok) {
           const data = await response.json()
           // API returns array of questions with 'text' field, map to 'question' field
@@ -118,29 +119,18 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
         // Check if question exists (has an ID that's not a temporary one)
         const isExistingQuestion = existingQuestions.some(eq => eq.id === question.id && !question.id.startsWith('temp-'))
         
-        let requestData: any = {
-          question: question.question,
-          status: targetStatus
-        }
+        console.log('Saving question data:', { question: question.question, status: targetStatus })
         
-        console.log('Saving question data:', requestData)
-        
-        const url = `/api/questions`
-        const method = isExistingQuestion ? 'PUT' : 'POST'
-        
-        if (isExistingQuestion) {
-          // For existing questions, include the ID in the request body for PUT
-          requestData.id = question.id
-        }
-        
-        const response = await fetch(url, {
-          method,
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestData),
-        })
+        const { questions } = await import('@/lib/api')
+        const response = isExistingQuestion
+          ? await questions.put(question.id, {
+              question: question.question,
+              status: targetStatus,
+            })
+          : await questions.post({
+              question: question.question,
+              status: targetStatus,
+            })
         
         if (!response.ok) {
           const errorText = await response.text()

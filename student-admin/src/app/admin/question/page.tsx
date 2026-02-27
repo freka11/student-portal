@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { Plus, Trash2, ChevronUp, ChevronDown,  } from 'lucide-react'
+import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { Modal } from '@/components/admin/Modal'
@@ -9,8 +9,7 @@ import { QuestionHistory } from '@/components/admin/QuestionHistory'
 import QuestionEditor from '@/components/admin/QuestionEditor'
 import { Card, CardContent } from '@/components/admin/Card'
 import { HelpCircle, Users } from 'lucide-react'
-import { useSearchParams } from 'next/navigation'
-import { useRouter, usePathname } from 'next/navigation'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useAdminUser } from '@/hooks/useAdminUser'
 
 interface Question {
@@ -38,12 +37,14 @@ function QuestionPageContent() {
 
   const fetchQuestions = async () => {
   try {
-    const response = await fetch('/api/questions')
+    const { questions } = await import('@/lib/api')
+    const response = await questions.get()
     if (!response.ok) throw new Error('Failed to fetch')
 
     const data = await response.json()
+    const questionsArray = Array.isArray(data) ? data : []
 
-    const mappedQuestions = data.map((q: any) => ({
+    const mappedQuestions = questionsArray.map((q: any) => ({
       ...q,
       question: q.text,
     }))
@@ -64,15 +65,9 @@ function QuestionPageContent() {
 
   const handleToggleDraft = async (questionId: string, currentStatus?: 'published' | 'draft') => {
   try {
-    const response = await fetch(`/api/questions?id=${questionId}`, {
-      method: 'PATCH', // 👈 use PATCH for updating
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        status: currentStatus === 'published' ? 'draft' : 'published'
-      })
-    })
+    const { questions } = await import('@/lib/api')
+    const newStatus = currentStatus === 'published' ? 'draft' : 'published'
+    const response = await questions.patchStatus(questionId, newStatus)
 
     if (response.ok) {
       await fetchQuestions()
@@ -96,12 +91,10 @@ function QuestionPageContent() {
    
     
     try {
-      const response = await fetch(`/api/questions?id=${questionId}`, {
-        method: 'DELETE'
-      })
+      const { questions } = await import('@/lib/api')
+      const response = await questions.delete(questionId)
       
       if (response.ok) {
-        // Remove from local state and sync localStorage from the same source of truth
       
            await fetchQuestions()
           addToast('Question deleted successfully!', 'success')

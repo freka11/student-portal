@@ -14,30 +14,32 @@ type Question = {
 };
 
 export class QuestionService {
-
   async listByPublishDate(date: string) {
     const snapshot = await collection
       .where("publishDate", "==", date)
-      .where("deleted", "==", false)
-      .orderBy("createdAt", "desc")
       .get();
 
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...(doc.data() as Question),
-    }));
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...(doc.data() as Question) }))
+      .filter((q: any) => q.deleted !== true)
+      .sort((a: any, b: any) => {
+        const aAt = a.createdAt || ''
+        const bAt = b.createdAt || ''
+        return bAt.localeCompare(aAt)
+      });
   }
 
   async listAll() {
-    const snapshot = await collection
-      .where("deleted", "==", false)
-      .orderBy("createdAt", "desc")
-      .get();
+    const snapshot = await collection.get();
 
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...(doc.data() as Question),
-    }));
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...(doc.data() as Question) }))
+      .filter((q: any) => q.deleted !== true)
+      .sort((a: any, b: any) => {
+        const aAt = a.createdAt || ''
+        const bAt = b.createdAt || ''
+        return bAt.localeCompare(aAt)
+      });
   }
 
   async create(data: {
@@ -73,6 +75,15 @@ export class QuestionService {
   async softDelete(id: string) {
     await collection.doc(id).update({
       deleted: true,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { id };
+  }
+
+  async updateStatus(id: string, status: "draft" | "published") {
+    await collection.doc(id).update({
+      status,
       updatedAt: new Date().toISOString(),
     });
 

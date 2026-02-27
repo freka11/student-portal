@@ -50,20 +50,8 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
     
     try {
       // Send correct data structure to API
-      const requestData = {
-        thought: thought.trim()
-      }
-      
-      console.log('Sending thought data:', requestData)
-      
-      const response = await fetch('/api/thoughts', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      })
+      const { thoughts } = await import('@/lib/api')
+      const response = await thoughts.post({ thought: thought.trim() })
       
       console.log('API Response status:', response.status)
       console.log('API Response ok:', response.ok)
@@ -101,21 +89,8 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
     setIsSaving(true)
     
     try {
-      // Send correct data structure to API
-      const requestData = {
-        thought: thought.trim()
-      }
-      
-      console.log('Sending thought data:', requestData)
-      
-      const response = await fetch('/api/thoughts', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      })
+      const { thoughts } = await import('@/lib/api')
+      const response = await thoughts.post({ thought: thought.trim() })
       
       console.log('API Response status:', response.status)
       console.log('API Response ok:', response.ok)

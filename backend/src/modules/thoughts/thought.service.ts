@@ -7,24 +7,19 @@ export class ThoughtService {
   static async listByPublishDate(date: string) {
     const snapshot = await collection
       .where("publishDate", "==", date)
-      .where("deleted", "!=", true)
       .get();
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    return snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((t: any) => t.deleted !== true);
   }
 
   static async listAll() {
-    const snapshot = await collection
-      .where("deleted", "!=", true)
-      .get();
+    const snapshot = await collection.get();
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    return snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((t: any) => t.deleted !== true);
   }
 
   static async create(data: {
@@ -37,11 +32,12 @@ export class ThoughtService {
       text: data.text,
       status: "published",
       createdBy: data.createdBy,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
       publishDate: today,
       deleted: false,
     });
 
+    
     return { id: docRef.id };
   }
 

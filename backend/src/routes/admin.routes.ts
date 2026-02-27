@@ -3,6 +3,7 @@ import { verifyFirebaseToken } from '../middleware/verifyFirebaseToken'
 import { requireRole } from '../middleware/requireRole'
 import { QuestionService } from '../modules/questions/question.service'
 import { ThoughtService } from '../modules/thoughts/thought.service'
+import { AnswerService } from '../modules/answers/answer.service'
 
 export function createAdminRouter() {
   const router = Router()
@@ -10,8 +11,8 @@ export function createAdminRouter() {
   router.use(verifyFirebaseToken)
   router.use(requireRole(['admin', 'super_admin', 'teacher']))
 
-  // DASHBOARD
-  router.get('/dashboard/today', async (_req, res) => {
+  // DASHBOARD - mirrors admin /api/thoughts + /api/questions behaviour for today
+  router.get('/dashboard', async (_req, res) => {
     try {
       const today = new Date().toISOString().split("T")[0]
 
@@ -30,44 +31,44 @@ export function createAdminRouter() {
     }
   })
 
-  // GET thoughts
+  // GET thoughts - mirror student-admin /api/thoughts
   router.get("/thoughts", async (req, res, next) => {
     try {
       const dateFilter = req.query.date as string | undefined
 
       if (dateFilter === "all") {
         const thoughts = await ThoughtService.listAll()
-        return res.json({ success: true, data: thoughts })
+        return res.json(thoughts)
       }
 
       const today = new Date().toISOString().split("T")[0]
       const thoughts = await ThoughtService.listByPublishDate(today)
 
-      res.json({ success: true, data: thoughts })
+      res.json(thoughts)
     } catch (error) {
       next(error)
     }
   })
 
-  // CREATE thought
+  // CREATE thought (accepts both "text" and "thought" for API compatibility)
   router.post("/thoughts", async (req, res, next) => {
     try {
-      const { text } = req.body
+      const text = req.body.text ?? req.body.thought
 
-      if (!text || text.trim() === "") {
+      if (!text || (typeof text === 'string' && text.trim() === "")) {
         return res.status(400).json({
           success: false,
-          message: "Thought text is required",
+          message: "Thought is empty",
         })
       }
 
       const createdBy = {
         uid: req.user!.uid,
-        name: req.user!.email?.split("@")[0] || "Admin",
+        name: req.user!.email?.split("@")[0] || "Default User",
       }
 
       const result = await ThoughtService.create({
-        text: text.trim(),
+        text: String(text).trim(),
         createdBy,
       })
 
@@ -118,13 +119,32 @@ export function createAdminRouter() {
       next(error)
     }
   })
-// QUESTION
+// QUESTIONS - admin CRUD, mirroring student-admin /api/questions
+
+router.get('/questions', async (req, res, next) => {
+  try {
+    const dateFilter = req.query.date as string | undefined
+    const service = new QuestionService()
+
+    if (dateFilter === 'all') {
+      const questions = await service.listAll()
+      return res.json(questions)
+    }
+
+    const today = new Date().toISOString().split('T')[0]
+    const questions = await service.listByPublishDate(today)
+    res.json(questions)
+  } catch (error) {
+    next(error)
+  }
+})
 
 router.post("/questions", async (req, res, next) => {
   try {
-    const { text } = req.body;
+    const text = req.body.text ?? req.body.question
+    const { status } = req.body;
 
-    if (!text || text.trim() === "") {
+    if (!text || (typeof text === 'string' && text.trim() === "")) {
       return res.status(400).json({
         success: false,
         message: "Question text is required",
@@ -134,7 +154,8 @@ router.post("/questions", async (req, res, next) => {
     const questionService = new QuestionService();
 
     const result = await questionService.create({
-      text: text.trim(),
+      text: String(text).trim(),
+      status,
       createdBy: {
         uid: req.user!.uid,
         name: req.user!.email?.split("@")[0] || "Admin",
@@ -155,9 +176,10 @@ router.post("/questions", async (req, res, next) => {
 router.put("/questions/:id", async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { text } = req.body;
+    const text = req.body.text ?? req.body.question;
+    const { status } = req.body;
 
-    if (!text || text.trim() === "") {
+    if (!text || (typeof text === 'string' && text.trim() === "")) {
       return res.status(400).json({
         success: false,
         message: "Text is required",
@@ -165,7 +187,11 @@ router.put("/questions/:id", async (req, res, next) => {
     }
 
     const questionService = new QuestionService();
-    const result = await questionService.update(id, text.trim());
+    await questionService.update(id, String(text).trim());
+    if (status === 'draft' || status === 'published') {
+      await questionService.updateStatus(id, status);
+    }
+    const result = { id };
 
     res.json({ success: true, data: result });
 
@@ -194,26 +220,52 @@ router.delete("/questions/:id", async (req, res, next) => {
   }
 });
 
-router.get("/questions", async (req, res, next) => {
+router.patch("/questions/:id/status", async (req, res, next) => {
   try {
-   
+    const { id } = req.params
+    const { status } = req.body as { status?: 'draft' | 'published' }
 
-    const questionService = new QuestionService();
-    const result = await questionService.listAll();
+    if (status !== 'draft' && status !== 'published') {
+      return res.status(400).json({
+        success: false,
+        message: 'Status must be draft or published',
+      })
+    }
 
-    res.json({
-      success: true,
-      message: "Questions fetched successfully",
-      data: result,
-    });
+    const questionService = new QuestionService()
+    const result = await questionService.updateStatus(id, status)
 
+    res.json({ success: true, data: result })
   } catch (error) {
-    next(error);
+    next(error)
   }
-});
+})
 
+  // ANSWERS - admin: GET all, DELETE (mirrors student-admin /api/answers)
+  const answerService = new AnswerService()
 
+  router.get('/answers', async (_req, res, next) => {
+    try {
+      const answers = await answerService.listAll()
+      res.json(answers)
+    } catch (error) {
+      next(error)
+    }
+  })
 
+  // DELETE by id in path or query (for compatibility with Next.js API)
+  router.delete(['/answers', '/answers/:id'], async (req, res, next) => {
+    try {
+      const id = req.params.id ?? (req.query.id as string)
+      if (!id) {
+        return res.status(400).json({ success: false, message: 'Answer ID is required' })
+      }
+      await answerService.delete(id)
+      res.json({ success: true, message: 'Answer deleted successfully' })
+    } catch (error) {
+      next(error)
+    }
+  })
 
   return router
 }

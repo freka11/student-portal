@@ -28,7 +28,7 @@ export function useAdminUser() {
         // Check Firebase auth state
         const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
           if (firebaseUser) {
-            // User is authenticated with Firebase
+            // User is authenticated with Firebase - required for backend API token
             setAdmin({
               id: parsed.id,
               email: parsed.email,
@@ -40,16 +40,8 @@ export function useAdminUser() {
               permissions: parsed.permissions,
             })
           } else {
-            // User not authenticated with Firebase, but has local storage
-            setAdmin({
-              id: parsed.id,
-              email: parsed.email,
-              username: parsed.username,
-              name: parsed.name,
-              role: parsed.role,
-              publicId: parsed.publicId,
-              permissions: parsed.permissions,
-            })
+            // No Firebase session - clear admin so we don't make API calls without a token
+            setAdmin(null)
           }
           setReady(true)
         })

@@ -39,11 +39,12 @@ export default function AnswersByQuestionPage() {
     const loadData = async () => {
       try {
         // Load answers
-        const answersResponse = await fetch('/api/answers')
+        const { answers, questions } = await import('@/lib/api')
+        const answersResponse = await answers.get()
         const answersData = await answersResponse.json()
         
         // Load questions to find the specific question
-        const questionsResponse = await fetch('/api/questions')
+        const questionsResponse = await questions.get()
         const questionsData = await questionsResponse.json()
         
         // Filter answers for this question

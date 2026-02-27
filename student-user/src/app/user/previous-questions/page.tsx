@@ -39,7 +39,8 @@ export default function PreviousQuestionsPage() {
     const loadData = async () => {
       try {
         // Load all questions from API (not just today's)
-        const questionsResponse = await fetch('/api/questions?date=all')
+        const { questions, answers } = await import('@/lib/api')
+        const questionsResponse = await questions.get('all')
         let questionsData = []
         
         if (questionsResponse.ok) {
@@ -50,7 +51,7 @@ export default function PreviousQuestionsPage() {
         }
         
         // Load student answers
-        const answersResponse = await fetch('/api/answers?all=true')
+        const answersResponse = await answers.get()
         let answersData = []
         
         if (answersResponse.ok) {

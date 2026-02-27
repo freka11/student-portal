@@ -75,17 +75,11 @@ function AnswerModal({ question, user, existingAnswer, onClose, onAnswerSubmitte
     
     try {
       // Submit answer to Firebase API
-      const response = await fetch('/api/answers', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          questionId: question.id,
-          answer: answer.trim(),
-          publishDate: question.publishDate || new Date().toISOString().split('T')[0]
-        })
+      const { answers } = await import('@/lib/api')
+      const response = await answers.post({
+        questionId: question.id,
+        answer: answer.trim(),
+        publishDate: question.publishDate || new Date().toISOString().split('T')[0]
       })
 
       if (response.ok) {
@@ -209,8 +203,9 @@ export default function SimpleDashboard() {
       try {
         const today = new Date().toISOString().split('T')[0]
         
+        const { thoughts, questions: questionsApi, answers: answersApi, streak: streakApi } = await import('@/lib/api')
         // Load thoughts from API
-        const thoughtsResponse = await fetch('/api/thoughts')
+        const thoughtsResponse = await thoughts.get()
         if (!thoughtsResponse.ok) {
           throw new Error(`Failed to fetch thoughts: ${thoughtsResponse.status}`)
         }
@@ -221,7 +216,7 @@ export default function SimpleDashboard() {
         const todayThought = thoughtsArray.find((thought: Thought) => thought.publishDate === today)
         
         // Load questions from API
-        const questionsResponse = await fetch('/api/questions?date=all')
+        const questionsResponse = await questionsApi.get('all')
         if (!questionsResponse.ok) {
           throw new Error(`Failed to fetch questions: ${questionsResponse.status}`)
         }
@@ -239,7 +234,7 @@ export default function SimpleDashboard() {
         )
 
         // Load student's answers once and build lookups
-        const answersResponse = await fetch('/api/answers', { credentials: 'include' })
+        const answersResponse = await answersApi.get()
         const answersData = answersResponse.ok ? await answersResponse.json() : []
         const answersArray = Array.isArray(answersData) ? answersData : []
 
@@ -290,7 +285,7 @@ export default function SimpleDashboard() {
 
         setHasAnsweredToday(todayQuestions.some(q => nextAnswered.has(q.id)))
 
-        const streakResponse = await fetch('/api/streak', { credentials: 'include' })
+        const streakResponse = await streakApi.get()
         if (streakResponse.ok) {
           const streakData = await streakResponse.json()
           const streak = streakData?.streak

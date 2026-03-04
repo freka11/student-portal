@@ -29,6 +29,21 @@ export async function signInWithGoogle() {
 }
 
 export async function getAdminIdToken(): Promise<string | null> {
+  // Wait for auth to initialize if it's currently null
+  if (!auth.currentUser) {
+    await new Promise<void>((resolve) => {
+      const unsubscribe = auth.onAuthStateChanged((user) => {
+        unsubscribe()
+        resolve()
+      })
+      // Timeout after 5 seconds just in case
+      setTimeout(() => {
+        unsubscribe()
+        resolve()
+      }, 5000)
+    })
+  }
+
   const user = auth.currentUser
   if (!user) return null
   return user.getIdToken()

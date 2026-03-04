@@ -10,13 +10,20 @@ export function createApp() {
 
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN?.split(',') || [
-        'http://localhost:3000',
-        'http://localhost:3001',
-      ],
+      origin: (origin, callback) => {
+        const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [
+          'http://localhost:3000',
+          'http://localhost:3001',
+        ]
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true)
+        } else {
+          callback(new Error('Not allowed by CORS'))
+        }
+      },
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
-      credentials: false,
+      credentials: true,
     })
   )
 

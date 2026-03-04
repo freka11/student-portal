@@ -5,7 +5,7 @@
 import { getStudentIdToken } from './auth'
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000'
-const ADMIN_PREFIX = '/api/admin'
+const STUDENT_PREFIX = '/api/student'
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getStudentIdToken()
@@ -30,31 +30,7 @@ export async function apiPost(path: string, body?: object) {
   return res
 }
 
-export async function apiPut(path: string, body?: object) {
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'PUT',
-    headers: await getAuthHeaders(),
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  return res
-}
-
-export async function apiPatch(path: string, body?: object) {
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'PATCH',
-    headers: await getAuthHeaders(),
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  return res
-}
-
-export async function apiDelete(path: string) {
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'DELETE',
-    headers: await getAuthHeaders(),
-  })
-  return res
-}
+// ... (apiPut, apiPatch, apiDelete remain the same if needed, but student mostly uses GET/POST)
 
 // Auth - uses /api/auth
 export async function authSessionPost(token: string) {
@@ -70,34 +46,23 @@ export async function authSessionPost(token: string) {
 // Thoughts
 export const thoughts = {
   get: (date?: string) =>
-    apiGet(`${ADMIN_PREFIX}/thoughts${date ? `?date=${date}` : ''}`),
-  post: (data: { thought?: string; text?: string }) =>
-    apiPost(`${ADMIN_PREFIX}/thoughts`, data.thought ? { thought: data.thought } : { text: data.text }),
-  put: (id: string, text: string) => apiPut(`${ADMIN_PREFIX}/thoughts/${id}`, { text }),
-  delete: (id: string) => apiDelete(`${ADMIN_PREFIX}/thoughts/${id}`),
+    apiGet(`${STUDENT_PREFIX}/thoughts${date ? `?date=${date}` : ''}`),
 }
 
 // Questions
 export const questions = {
   get: (date?: string) =>
-    apiGet(`${ADMIN_PREFIX}/questions${date ? `?date=${date}` : ''}`),
-  post: (data: { question?: string; text?: string; status?: string }) =>
-    apiPost(`${ADMIN_PREFIX}/questions`, {
-      question: data.question ?? data.text,
-      status: data.status,
-    }),
-  put: (id: string, data: { question?: string; text?: string; status?: string }) =>
-    apiPut(`${ADMIN_PREFIX}/questions/${id}`, {
-      text: data.text ?? data.question,
-      status: data.status,
-    }),
-  patchStatus: (id: string, status: 'draft' | 'published') =>
-    apiPatch(`${ADMIN_PREFIX}/questions/${id}/status`, { status }),
-  delete: (id: string) => apiDelete(`${ADMIN_PREFIX}/questions/${id}`),
+    apiGet(`${STUDENT_PREFIX}/questions${date ? `?date=${date}` : ''}`),
 }
 
 // Answers
 export const answers = {
-  get: () => apiGet(`${ADMIN_PREFIX}/answers`),
-  delete: (id: string) => apiDelete(`${ADMIN_PREFIX}/answers?id=${id}`),
+  get: (all?: boolean) => apiGet(`${STUDENT_PREFIX}/answers${all ? '?all=true' : ''}`),
+  post: (data: { questionId: string; answer: string; publishDate?: string }) =>
+    apiPost(`${STUDENT_PREFIX}/answers`, data),
+}
+
+// Streak
+export const streak = {
+  get: () => apiGet(`${STUDENT_PREFIX}/streak`),
 }

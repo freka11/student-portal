@@ -66,7 +66,7 @@ export default function ChatPage() {
         setTeachers([])
       }
     }
-    
+
 
     loadTeachers()
   }, [admin?.id, admin?.role])
@@ -85,7 +85,7 @@ export default function ChatPage() {
     if (error) {
       console.error('Chat error:', error)
       addToast(error, 'error')
-      
+
       // Check if it's a Firestore permission error
       if (error.includes('permission') || error.includes('Permission')) {
         console.log('⚠️ Firestore permission error detected!')
@@ -101,18 +101,18 @@ export default function ChatPage() {
 
 
 
-// Clear selection if conversation no longer valid
+  // Clear selection if conversation no longer valid
   useEffect(() => {
-  if (!selectedConversation) return
+    if (!selectedConversation) return
 
-  const stillExists = conversations.find(
-    (c) => c.id === selectedConversation.id
-  )
+    const stillExists = conversations.find(
+      (c) => c.id === selectedConversation.id
+    )
 
-  if (!stillExists) {
-    selectConversation('')
-  }
-}, [conversations, selectedConversation, selectConversation])
+    if (!stillExists) {
+      selectConversation('')
+    }
+  }, [conversations, selectedConversation, selectConversation])
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return
@@ -121,9 +121,9 @@ export default function ChatPage() {
       setSendingMessage(true)
       await sendMessage(newMessage)
       setNewMessage('')
-     
-      
-      
+
+
+
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : 'Failed to send message',
@@ -152,7 +152,7 @@ export default function ChatPage() {
         '',
         ''
       )
-      
+
       // Select the new conversation
       const newConv = conversations.find((c) => c.id === conversationId)
       if (newConv) {
@@ -161,7 +161,7 @@ export default function ChatPage() {
         // If conversation not in list yet, create a temporary one
         selectConversation(conversationId)
       }
-      
+
       addToast(`Started conversation with ${studentName}`, 'success')
     } catch (err) {
       addToast(
@@ -173,16 +173,11 @@ export default function ChatPage() {
 
   const handleAssignmentChange = async (conversationId: string, teacherId: string | null) => {
     try {
-      const response = await fetch('/api/assign-conversation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          conversationId,
-          teacherId,
-          assignedBy: admin?.id,
-        }),
+      const { conversations: apiConversations } = await import('@/lib/api')
+      const response = await apiConversations.assign({
+        conversationId,
+        teacherId,
+        assignedBy: admin?.id || '',
       })
 
       const result = await response.json()
@@ -227,15 +222,15 @@ export default function ChatPage() {
       <div className="mb-4 sm:mb-6 sticky top-0 z-10 bg-white/95 backdrop-blur supports-backdrop-filter:bg-white/80">
         <div className="pt-1">
           <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-3xl font-bold text-black">Chat</h1>
+            <h1 className="text-3xl font-bold text-black">Chat</h1>
           </div>
           <p className="text-black mt-2">
-          {admin?.role === 'super_admin' 
-            ? 'Manage all conversations and assign to teachers' 
-            : admin?.role === 'teacher'
-            ? 'View and manage your assigned conversations'
-            : 'Communicate with students'
-          }
+            {admin?.role === 'super_admin'
+              ? 'Manage all conversations and assign to teachers'
+              : admin?.role === 'teacher'
+                ? 'View and manage your assigned conversations'
+                : 'Communicate with students'
+            }
           </p>
         </div>
       </div>
@@ -245,7 +240,7 @@ export default function ChatPage() {
           <Card className="h-full">
             <CardContent className="p-4 h-full flex flex-col">
               <div className="relative mb-4">
-            
+
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
@@ -293,11 +288,10 @@ export default function ChatPage() {
                           <div
                             key={conversation.id}
                             onClick={() => selectConversation(conversation.id)}
-                            className={`p-3 rounded-xl cursor-pointer transition-colors border hover:border-gray-300 ${
-                              selectedConversation?.id === conversation.id
+                            className={`p-3 rounded-xl cursor-pointer transition-colors border hover:border-gray-300 ${selectedConversation?.id === conversation.id
                                 ? 'bg-blue-50 border-blue-200'
                                 : 'border-transparent hover:bg-gray-50'
-                            }`}
+                              }`}
                           >
                             <div className="flex items-start gap-3">
                               <div className="relative shrink-0">
@@ -436,7 +430,7 @@ export default function ChatPage() {
                   />
                 </>
               ) : (
-              <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-center">
+                <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-center">
                   <div className="text-center">
                     <p className="text-black text-lg">Select a student to start chatting</p>
                     <p className="text-black text-sm mt-2">Choose from the student list on the left</p>
@@ -445,7 +439,7 @@ export default function ChatPage() {
               )}
             </CardContent>
           </Card>
-        </div> 
+        </div>
 
         {!selectedConversation && (
           <div className="flex-1 min-h-0 lg:hidden">

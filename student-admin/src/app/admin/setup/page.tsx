@@ -33,11 +33,8 @@ export default function SetupPage() {
     setResult(null)
 
     try {
-      const response = await fetch('/api/setup-users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-
+      const { apiPost } = await import('@/lib/api')
+      const response = await apiPost('/api/admin/setup/users')
       const data: SetupResponse = await response.json()
 
       if (response.ok) {
@@ -57,7 +54,8 @@ export default function SetupPage() {
 
   const handleCheckUsers = async () => {
     try {
-      const response = await fetch('/api/setup-users')
+      const { apiGet } = await import('@/lib/api')
+      const response = await apiGet('/api/admin/setup/users')
       const data = await response.json()
 
       if (response.ok) {
@@ -145,11 +143,10 @@ export default function SetupPage() {
                   {result.results.map((user, index) => (
                     <div
                       key={index}
-                      className={`p-3 rounded-lg border ${
-                        user.status === 'success'
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
-                      }`}
+                      className={`p-3 rounded-lg border ${user.status === 'success'
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-red-50 border-red-200'
+                        }`}
                     >
                       <div className="flex justify-between items-start">
                         <div>
@@ -158,11 +155,10 @@ export default function SetupPage() {
                           <p className="text-xs text-gray-500">Role: {user.role}</p>
                         </div>
                         <span
-                          className={`text-xs px-2 py-1 rounded ${
-                            user.status === 'success'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
+                          className={`text-xs px-2 py-1 rounded ${user.status === 'success'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                            }`}
                         >
                           {user.status}
                         </span>

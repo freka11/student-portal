@@ -101,3 +101,18 @@ export const answers = {
   get: () => apiGet(`${ADMIN_PREFIX}/answers`),
   delete: (id: string) => apiDelete(`${ADMIN_PREFIX}/answers?id=${id}`),
 }
+
+// Users
+export const users = {
+  list: () => apiGet(`${ADMIN_PREFIX}/users`),
+  createTeacher: (data: { email: string; password?: string; name: string }) =>
+    apiPost(`${ADMIN_PREFIX}/users/create-teacher`, data),
+  promoteToSuperAdmin: (uid: string) =>
+    apiPost(`${ADMIN_PREFIX}/users/promote-superadmin`, { uid }),
+}
+
+// Conversations
+export const conversations = {
+  assign: (data: { conversationId: string; teacherId: string | null; assignedBy: string }) =>
+    apiPost(`${ADMIN_PREFIX}/conversations/assign`, data),
+}

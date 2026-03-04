@@ -6,7 +6,7 @@ import { auth } from './firebase-client'
 
 export function getCurrentUser() {
   if (typeof window === 'undefined') return null
-  const user = localStorage.getItem('studentUser')
+  const user = localStorage.getItem('user')
   return user ? JSON.parse(user) : null
 }
 
@@ -15,8 +15,8 @@ export function isAuthenticated() {
 }
 
 export function logout() {
-  localStorage.removeItem('studentUser')
-  window.location.href = '/User/login'
+  localStorage.removeItem('user')
+  window.location.href = '/user/login'
 }
 
 export async function signInWithGoogle() {
@@ -29,6 +29,21 @@ export async function signInWithGoogle() {
 }
 
 export async function getStudentIdToken(): Promise<string | null> {
+  // Wait for auth to initialize if it's currently null
+  if (!auth.currentUser) {
+    await new Promise<void>((resolve) => {
+      const unsubscribe = auth.onAuthStateChanged((user) => {
+        unsubscribe()
+        resolve()
+      })
+      // Timeout after 5 seconds just in case
+      setTimeout(() => {
+        unsubscribe()
+        resolve()
+      }, 5000)
+    })
+  }
+
   const user = auth.currentUser
   if (!user) return null
   return user.getIdToken()

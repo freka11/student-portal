@@ -46,17 +46,17 @@ export default function AnswersPage() {
         const answersData = await answersResponse.json()
 
         console.log('All answers data:', answersData)
-        
+
         // Ensure answersData is an array
         const answersArray = Array.isArray(answersData) ? answersData : []
-        
+
         if (answersArray.length === 0) {
           console.log('No answers found in database')
           setAnswers([])
           setFilteredAnswers([])
           return
         }
-        
+
         // For debugging: Show all answers to see if data exists
         // In a real app, you would filter by current student's ID
         const currentStudentId = 'current_student' // This should come from auth
@@ -64,54 +64,54 @@ export default function AnswersPage() {
           // Show all answers for debugging, comment this for production
           return true; //answer.studentId === currentStudentId || !answer.studentId
         })
-        
+
         console.log('Filtered answers for current student:', studentAnswers)
-        
+
         if (studentAnswers.length === 0) {
           console.log('No answers found for current student')
           setAnswers([])
           setFilteredAnswers([])
           return
         }
-        
+
         // Load all questions to get question text (only once)
         const questionsResponse = await questions.get('all')
-        let questions: Question[] = []
+        let allQuestions: Question[] = []
         if (questionsResponse.ok) {
-          questions = await questionsResponse.json()
-          console.log('Questions loaded:', questions.length)
+          allQuestions = await questionsResponse.json()
+          console.log('Questions loaded:', allQuestions.length)
         }
 
         const validQuestionIds = new Set<string>()
-        for (const q of questions) {
+        for (const q of allQuestions) {
           if (q?.id) validQuestionIds.add(q.id)
         }
 
         const questionTextById = new Map<string, string>()
-        for (const q of questions) {
+        for (const q of allQuestions) {
           if (q?.id && typeof q.text === 'string') {
             questionTextById.set(q.id, q.text)
           }
         }
-        
+
         // Transform and enrich answers data
         const userAnswers: UserAnswer[] = studentAnswers
           .filter((answer: any) => !!answer?.questionId && validQuestionIds.has(answer.questionId))
           .map((answer: any) => {
-          const questionText = questionTextById.get(answer.questionId)
-          return {
-            date: answer.submittedAt?.split('T')[0] || new Date().toISOString().split('T')[0],
-            question: questionText || '',
-            answer: answer.answer,
-            timestamp: answer.submittedAt
-          }
-        })
-        
+            const questionText = questionTextById.get(answer.questionId)
+            return {
+              date: answer.submittedAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+              question: questionText || '',
+              answer: answer.answer,
+              timestamp: answer.submittedAt
+            }
+          })
+
         console.log('Transformed user answers:', userAnswers)
-        
+
         // Sort by date (newest first)
         userAnswers.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-        
+
         setAnswers(userAnswers)
         setFilteredAnswers(userAnswers)
       } else {
@@ -136,25 +136,25 @@ export default function AnswersPage() {
   const submitTestAnswer = async () => {
     try {
       console.log('Submitting test answer...')
-      
+
       // First get a question ID to use
       const { questions, answers } = await import('@/lib/api')
       const questionsResponse = await questions.get('all')
       if (questionsResponse.ok) {
-        const questionsData = await questionsResponse.json()
-        if (questionsData.length > 0) {
-          const testQuestion = questionsData[0]
-          
+        const allQuestionsData = await questionsResponse.json()
+        if (allQuestionsData.length > 0) {
+          const testQuestion = allQuestionsData[0]
+
           const response = await answers.post({
             questionId: testQuestion.id,
             answer: `This is a test answer submitted at ${new Date().toLocaleString()} to verify the API works correctly.`
           })
-          
+
           if (response.ok) {
             const result = await response.json()
             console.log('✅ Test answer submitted:', result)
             alert('Test answer submitted successfully! Refreshing answers...')
-            
+
             // Reload answers
             loadAnswers()
           } else {
@@ -202,16 +202,16 @@ export default function AnswersPage() {
 
   const loadMoreAnswers = useCallback(() => {
     if (isLoading || !hasMore) return
-    
+
     setIsLoading(true)
-    
+
     // Simulate API delay
     setTimeout(() => {
       const nextPage = currentPage + 1
       const startIndex = (nextPage - 1) * itemsPerPage
       const endIndex = startIndex + itemsPerPage
       const nextAnswers = filteredAnswers.slice(startIndex, endIndex)
-      
+
       setDisplayedAnswers(prev => [...prev, ...nextAnswers])
       setCurrentPage(nextPage)
       setHasMore(endIndex < filteredAnswers.length)
@@ -222,17 +222,17 @@ export default function AnswersPage() {
   const lastAnswerElementRef = useCallback((node: HTMLDivElement | null) => {
     if (isLoading) return
     if (observer.current) observer.current.disconnect()
-    
+
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
         loadMoreAnswers()
       }
     })
-    
+
     if (node) observer.current.observe(node)
   }, [isLoading, hasMore, loadMoreAnswers])
 
- 
+
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -257,7 +257,7 @@ export default function AnswersPage() {
   return (
     <div className="p-6 min-h-screen bg-linear-to-r from-purple-100 to-pink-200">
       <ToastContainer />
-      
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-black">My Answers</h1>
         <p className="text-black mt-2">Review your submitted responses and track your progress</p>
@@ -296,93 +296,93 @@ export default function AnswersPage() {
 
       {/* Search and Actions */}
       <Card className='bg-gray-100 p-8 '>
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search answers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple -400"
-              />
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search answers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple -400"
+                />
+              </div>
+
+
             </div>
-            
-
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Answers List */}
-      {filteredAnswers.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-black mb-2">
-              {searchQuery ? 'No answers found' : 'No answers yet'}
-            </h2>
-            <p className="text-black mb-4">
-              {searchQuery ? 'Try adjusting your search terms' : 'Start answering questions to see them here'}
-            </p>
-            {!searchQuery && (
-              <Button onClick={() => window.location.href = '/user/question'} className="hover:cursor-pointer">
-                Answer Today's Question
-              </Button>
-            )}
           </CardContent>
         </Card>
-      ) : (
-        <div className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50  transition-all duration-300 ease-out  m-2">
-          {displayedAnswers.map((answer, index) => (
-            <Card 
-              key={index} 
-              className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out hover:scale-101 m-2"
-              ref={index === displayedAnswers.length - 1 ? lastAnswerElementRef : null}
-            >
-              <CardHeader >
-                <div className="flex items-start justify-between ">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg mb-2">{answer.question}</CardTitle>
-                    <CardDescription className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      {formatDate(answer.date)}
-                    </CardDescription>
+
+        {/* Answers List */}
+        {filteredAnswers.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-black mb-2">
+                {searchQuery ? 'No answers found' : 'No answers yet'}
+              </h2>
+              <p className="text-black mb-4">
+                {searchQuery ? 'Try adjusting your search terms' : 'Start answering questions to see them here'}
+              </p>
+              {!searchQuery && (
+                <Button onClick={() => window.location.href = '/user/question'} className="hover:cursor-pointer">
+                  Answer Today's Question
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50  transition-all duration-300 ease-out  m-2">
+            {displayedAnswers.map((answer, index) => (
+              <Card
+                key={index}
+                className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out hover:scale-101 m-2"
+                ref={index === displayedAnswers.length - 1 ? lastAnswerElementRef : null}
+              >
+                <CardHeader >
+                  <div className="flex items-start justify-between ">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg mb-2">{answer.question}</CardTitle>
+                      <CardDescription className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        {formatDate(answer.date)}
+                      </CardDescription>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewAnswer(answer)}
+                      className="hover:cursor-pointer"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleViewAnswer(answer)}
-                    className="hover:cursor-pointer"
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    View
-                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-black line-clamp-3">{answer.answer}</p>
+                </CardContent>
+              </Card>
+            ))}
+            {isLoading && (
+              <div className="flex justify-center py-4">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Loading more answers...</span>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-black line-clamp-3">{answer.answer}</p>
-              </CardContent>
-            </Card>
-          ))}
-          {isLoading && (
-            <div className="flex justify-center py-4">
-              <div className="flex items-center gap-2 text-gray-500">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Loading more answers...</span>
               </div>
-            </div>
-          )}
-          
-          {/* End of results indicator */}
-          {!hasMore && displayedAnswers.length > 0 && (
-            <div className="text-center py-4 text-gray-500">
-              <p>End of results</p>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+
+            {/* End of results indicator */}
+            {!hasMore && displayedAnswers.length > 0 && (
+              <div className="text-center py-4 text-gray-500">
+                <p>End of results</p>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* View Answer Modal */}
@@ -402,7 +402,7 @@ export default function AnswersPage() {
               </div>
             </CardContent>
             <div className="p-6 pt-0">
-              <Button 
+              <Button
                 onClick={() => setShowViewModal(false)}
                 className="hover:cursor-pointer"
               >

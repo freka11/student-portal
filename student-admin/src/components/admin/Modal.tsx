@@ -10,17 +10,9 @@ interface ModalProps {
   title: string
   children: React.ReactNode
   className?: string
-  backdropClassName?: string
 }
 
-export function Modal({
-  isOpen,
-  onClose,
-  title,
-  children,
-  className,
-  backdropClassName,
-}: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, className }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -59,12 +51,7 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div
-        className={cn(
-          'absolute inset-0 transition-opacity',
-          backdropClassName ?? 'bg-black/40'
-        )}
-      />
+      <div className="absolute inset-0 bg-black/40 transition-opacity" />
       
       {/* Modal */}
       <div

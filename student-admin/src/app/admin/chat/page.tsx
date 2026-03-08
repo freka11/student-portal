@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
-import { MessageSquare, Search, Calendar, Crown, ChevronLeft } from 'lucide-react'
+import { MessageSquare, Search, Calendar, Crown } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
 import { useTeacherChat } from '@/hooks/useTeacherChat'
 import { useAvailableUsers } from '@/hooks/useAvailableUsers'
@@ -97,22 +97,6 @@ export default function ChatPage() {
       }
     }
   }, [error, addToast])
-
-
-
-
-// Clear selection if conversation no longer valid
-  useEffect(() => {
-  if (!selectedConversation) return
-
-  const stillExists = conversations.find(
-    (c) => c.id === selectedConversation.id
-  )
-
-  if (!stillExists) {
-    selectConversation('')
-  }
-}, [conversations, selectedConversation, selectConversation])
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return
@@ -228,6 +212,17 @@ export default function ChatPage() {
         <div className="pt-1">
           <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-3xl font-bold text-black">Chat</h1>
+          {admin?.role === 'super_admin' && (
+            <div className="flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
+              <Crown className="h-4 w-4" />
+              Super Admin
+            </div>
+          )}
+          {admin?.role === 'teacher' && (
+            <div className="flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+              Teacher
+            </div>
+          )}
           </div>
           <p className="text-black mt-2">
           {admin?.role === 'super_admin' 
@@ -293,7 +288,7 @@ export default function ChatPage() {
                           <div
                             key={conversation.id}
                             onClick={() => selectConversation(conversation.id)}
-                            className={`p-3 rounded-xl cursor-pointer transition-colors border hover:border-gray-300 ${
+                            className={`p-3 rounded-xl cursor-pointer transition-colors border ${
                               selectedConversation?.id === conversation.id
                                 ? 'bg-blue-50 border-blue-200'
                                 : 'border-transparent hover:bg-gray-50'
@@ -309,28 +304,14 @@ export default function ChatPage() {
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center justify-between">
                                   <p className="font-medium text-black truncate">
                                     {conversation.studentName}
                                   </p>
-
-                                  {admin?.role === 'super_admin' && (
-                                    <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                                      <ConversationAssignment
-                                        conversation={conversation}
-                                        availableTeachers={teachers}
-                                        currentUserId={admin?.id || ''}
-                                        currentUserRole={admin?.role || ''}
-                                        onAssignmentChange={handleAssignmentChange}
-                                        displayMode="inline"
-                                      />
-                                    </div>
-                                  )}
+                                  <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                                    {conversation.lastMessageTime.toLocaleDateString()}
+                                  </span>
                                 </div>
-
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  {conversation.lastMessageTime.toLocaleDateString()}
-                                </p>
                                 {(() => {
                                   const studentUser = availableUsers.find(
                                     (u) => u.id === conversation.studentId
@@ -344,6 +325,19 @@ export default function ChatPage() {
                                 <p className="text-sm text-gray-600 truncate mt-1">
                                   {conversation.lastMessage || 'No messages yet'}
                                 </p>
+
+                                {/* Assignment Component - Only show for super admins */}
+                                {admin?.role === 'super_admin' && (
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <ConversationAssignment
+                                      conversation={conversation}
+                                      availableTeachers={teachers}
+                                      currentUserId={admin?.id || ''}
+                                      currentUserRole={admin?.role || ''}
+                                      onAssignmentChange={handleAssignmentChange}
+                                    />
+                                  </div>
+                                )}
 
                                 {/* Show assignment info for teachers */}
                                 {admin?.role === 'teacher' && conversation.assignedTeacherName && (
@@ -399,12 +393,13 @@ export default function ChatPage() {
                   {/* Chat Header */}
                   <div className="p-4 border-b border-gray-200 bg-[#f0f2f5] sticky top-0 z-10">
                     <div className="flex items-center gap-3">
-                      <button
+                      <Button
+                        variant="outline"
                         onClick={() => selectConversation('')}
-                        className=" hover:cursor-pointer text-black"
+                        className="lg:hidden hover:cursor-pointer"
                       >
-                        <ChevronLeft className='hover:scale-120 transition-all duration-300' />
-                      </button>
+                        Back
+                      </Button>
                       <div className="relative bg-[#f0f2f5]">
                         <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
                           {selectedConversation.studentName.charAt(0).toUpperCase()}
@@ -436,8 +431,9 @@ export default function ChatPage() {
                   />
                 </>
               ) : (
-              <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-center">
+                <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
+                    <MessageSquare className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <p className="text-black text-lg">Select a student to start chatting</p>
                     <p className="text-black text-sm mt-2">Choose from the student list on the left</p>
                   </div>
@@ -445,13 +441,14 @@ export default function ChatPage() {
               )}
             </CardContent>
           </Card>
-        </div> 
+        </div>
 
         {!selectedConversation && (
           <div className="flex-1 min-h-0 lg:hidden">
             <Card className="h-full">
               <CardContent className="h-full flex items-center justify-center">
                 <div className="text-center">
+                  <MessageSquare className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <p className="text-black text-lg">Select a student to start chatting</p>
                   <p className="text-black text-sm mt-2">Choose from the student list above</p>
                 </div>

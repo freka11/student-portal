@@ -12,7 +12,6 @@ import {
   X,
   User,
   LogOut,
-  Crown,
 } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
 import { useAdminUser } from '@/hooks/useAdminUser'
@@ -73,20 +72,10 @@ export function Sidebar() {
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex items-center gap-2">
             <User className="h-5 w-5 text-gray-500" />
-            <div className="flex flex-col">
-              <span className="text-lg text-black">{admin?.name}</span>
-              {admin?.role === 'super_admin' && (
-                <span className="mt-1 inline-flex w-fit items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                  <Crown className="h-3.5 w-3.5" />
-                  Super Admin
-                </span>
-              )}
-              {admin?.role === 'teacher' && (
-                <span className="mt-1 inline-flex w-fit items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                  Teacher
-                </span>
-              )}
-            </div>
+            <span className="text-lg text-black">
+              {admin?.name}
+             
+            </span>
           </div>
 
           <Button

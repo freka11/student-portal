@@ -1,0 +1,26 @@
+{
+  "users": [
+    {
+      "uid": "rahul123",
+      "email": "rahul@example.com",
+      "role": "admin",
+      "permissions": [
+        "read",
+        "write",
+        "delete",
+        "manage_content"
+      ],
+      "updatedAt": "2026-03-05T10:22:57.895Z"
+    },
+    {
+      "uid": "likhith456",
+      "email": "likhith@example.com",
+      "role": "student",
+      "permissions": [
+        "read",
+        "write"
+      ],
+      "updatedAt": "2026-03-05T10:23:05.593Z"
+    }
+  ]
+}

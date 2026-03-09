@@ -11,6 +11,10 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getAdminIdToken()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
+
+  console.log('🔍 Admin API Debug - Token:', token)
+  console.log('🔍 Admin API Debug - Headers:', headers)
+
   return headers
 }
 

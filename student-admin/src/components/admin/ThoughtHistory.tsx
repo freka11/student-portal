@@ -33,10 +33,10 @@ const { admin, ready } = useAdminUser()
           
           // Map API data structure to frontend interface
           const mappedThoughts = apiThoughts.map(thought => ({
-            id: thought.id,
-            content: thought.text,
-            date: thought.publishDate,
-            adminName: thought.createdBy?.name || 'Admin',
+            id: thought.id || '',
+            content: thought.text || thought.content || '',
+            date: thought.publishDate || thought.date || new Date().toISOString(),
+            adminName: thought.createdBy?.name || thought.adminName || 'Admin',
           }))
           const sortedByLatest = mappedThoughts.sort(
           (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -68,8 +68,8 @@ const { admin, ready } = useAdminUser()
     return () => window.removeEventListener('newThought', handleNewThought as EventListener)
   }, [onThoughtAdded])
 
-  const truncateText = (text: string, maxLength: number = 100) => {
-    if (text.length <= maxLength) return text
+  const truncateText = (text: string | undefined | null, maxLength: number = 100) => {
+    if (!text || text.length <= maxLength) return text || ''
     return text.substring(0, maxLength) + '...'
   }
 

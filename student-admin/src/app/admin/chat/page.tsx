@@ -14,6 +14,7 @@ import { ConversationAssignment } from '@/components/admin/ConversationAssignmen
 import { useAdminUser } from '@/hooks/useAdminUser'
 import { createConversation } from '@/lib/chatService'
 import { getUsersByRole } from '@/lib/userService'
+import { auth } from '@/lib/firebase-client'
 
 
 
@@ -26,10 +27,11 @@ export default function ChatPage() {
   const [teachers, setTeachers] = useState<any[]>([])
 
   // Always call hooks in a stable order (do not conditionally call hooks)
-  const adminChatHook = useChat({ userId: admin?.id || '', userType: 'admin' })
-  const teacherChatHook = useTeacherChat({ userId: admin?.id || '' })
+  const isTeacher = admin?.role === 'teacher'
+  const adminChatHook = useChat({ userId: admin?.id || '', userType: 'admin', enabled: !isTeacher })
+  const teacherChatHook = useTeacherChat({ userId: admin?.id || '', enabled: isTeacher })
 
-  const chatHook = admin?.role === 'teacher' ? teacherChatHook : adminChatHook
+  const chatHook = isTeacher ? teacherChatHook : adminChatHook
 
   const {
     allConversations,
@@ -53,14 +55,21 @@ export default function ChatPage() {
   useEffect(() => {
     const loadTeachers = async () => {
       if (!admin?.id) return
-      if (admin?.role !== 'super_admin') {
+      if (admin?.role !== 'super_admin' && admin?.role !== 'admin') {
         setTeachers([])
         return
       }
 
       try {
-        const allTeachers = await getUsersByRole('teacher')
-        setTeachers(allTeachers)
+        const [teachers, admins, superAdmins] = await Promise.all([
+          getUsersByRole('teacher'),
+          getUsersByRole('admin'),
+          getUsersByRole('super_admin')
+        ])
+        
+        // Combine all and filter out the current user so they don't assign to themselves unnecessarily (optional, but good practice. actually let's skip filtering current user so they can assign to themselves)
+        const allAssignable = [...teachers, ...admins, ...superAdmins]
+        setTeachers(allAssignable)
       } catch (err) {
         console.error('Error loading teachers:', err)
         setTeachers([])
@@ -173,10 +182,19 @@ export default function ChatPage() {
 
   const handleAssignmentChange = async (conversationId: string, teacherId: string | null) => {
     try {
-      const response = await fetch('/api/assign-conversation', {
+      // Ensure auth is ready and token is retrieved
+      await auth.authStateReady()
+      const token = await auth.currentUser?.getIdToken()
+
+      if (!token) {
+        throw new Error('Authentication required to assign conversations')
+      }
+
+      const response = await fetch('http://localhost:5000/api/admin/assign-conversation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           conversationId,
@@ -314,7 +332,7 @@ export default function ChatPage() {
                                     {conversation.studentName}
                                   </p>
 
-                                  {admin?.role === 'super_admin' && (
+                                  {(admin?.role === 'super_admin' || admin?.role === 'admin') && (
                                     <div onClick={(e) => e.stopPropagation()} className="shrink-0">
                                       <ConversationAssignment
                                         conversation={conversation}

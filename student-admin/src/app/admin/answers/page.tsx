@@ -36,11 +36,11 @@ export default function AnswersPage() {
     const loadData = async () => {
       try {
         // Load answers from Firebase API
-        const answersResponse = await fetch('/api/answers')
+        const answersResponse = await fetch('http://localhost:5000/api/answers')
         const answersData = await answersResponse.json()
         
         // Load questions to get question text
-        const questionsResponse = await fetch('/api/questions?date=all')
+        const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all')
         const questionsData = await questionsResponse.json()
         
         setAnswers(answersData)

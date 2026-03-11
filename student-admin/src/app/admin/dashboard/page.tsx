@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
+import { auth } from '@/lib/firebase-client'
 import { Lightbulb, HelpCircle, Edit, Users, MessageSquare } from 'lucide-react'
 
 
@@ -59,12 +60,16 @@ export default function Dashboard() {
       return
     }
 
-    const loadTodayContent = async () => {
+      const loadTodayContent = async () => {
       try {
+        await auth.authStateReady()
+        const token = await auth.currentUser?.getIdToken()
+        const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
+
         const today = new Date().toISOString().split('T')[0]
         
         // Load thoughts
-        const thoughtsResponse = await fetch('/api/thoughts')
+        const thoughtsResponse = await fetch('http://localhost:5000/api/thoughts', { headers })
         if (!thoughtsResponse.ok) {
           throw new Error(`Failed to fetch thoughts: ${thoughtsResponse.status}`)
         }
@@ -76,7 +81,7 @@ export default function Dashboard() {
         setTodayThought(todayThought || null)
         
         // Load questions
-        const questionsResponse = await fetch('/api/questions')
+        const questionsResponse = await fetch('http://localhost:5000/api/questions', { headers })
         if (!questionsResponse.ok) {
           throw new Error(`Failed to fetch questions: ${questionsResponse.status}`)
         }

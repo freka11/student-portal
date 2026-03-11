@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
 import { HelpCircle, Calendar, User, Plus, Trash2, Users, Search, X } from 'lucide-react'
+import { auth } from '@/lib/firebase-client'
 
 interface Question {
   id: string
@@ -42,26 +43,29 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
     // Load data from JSON files
     const loadData = async () => {
       try {
+        const token = await auth.currentUser?.getIdToken()
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
+
         // Load questions history
-        const questionsResponse = await fetch('/api/questions?date=all')
+        const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all', { headers })
         const questionsData = await questionsResponse.json()
-        
+
         // Load student answers
-        const answersResponse = await fetch('/api/answers')
+        const answersResponse = await fetch('http://localhost:5000/api/answers', { headers })
         const answersData = await answersResponse.json()
-        
+
         // Group individual questions by date to match QuestionHistoryItem structure
-        const groupedByDate = questionsData.reduce((acc: any[], question: any) => {
+        const groupedByDate = Array.isArray(questionsData) ? questionsData.reduce((acc: any[], question: any) => {
           const date = question.publishDate || question.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0]
           const existingGroup = acc.find(group => group.date === date)
-          
+
           const mappedQuestion = {
             ...question,
             question: question.text, // Map text field to question field
             adminName: question.createdBy?.name || 'Admin User',
             status: question.status === 'draft' ? 'draft' : 'published'
           }
-          
+
           if (existingGroup) {
             existingGroup.questions.push(mappedQuestion)
           } else {
@@ -72,16 +76,16 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
               adminName: question.createdBy?.name || 'Admin User',
             })
           }
-          
+
           return acc
-        }, [])
+        }, []) : []
 
         const sortedByLatest = groupedByDate.sort(
           (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
         )
-        
-        setQuestionHistory(sortedByLatest)  
-        setStudentAnswers(answersData)
+
+        setQuestionHistory(sortedByLatest)
+        setStudentAnswers(Array.isArray(answersData) ? answersData : [])
       } catch (error) {
         console.error('Failed to load data:', error)
         // Fallback to mock data if API fails
@@ -120,29 +124,29 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
   const normalizedQuery = searchTerm.trim().toLowerCase()
   const filteredHistory = normalizedQuery
     ? questionHistory
-        .map((historyItem) => {
-          const questions = historyItem.questions.filter((q) => {
-            const haystack = [
-              q.question,
-              q.status,
-              q.adminName,
-              historyItem.adminName,
-              historyItem.date,
-              formatDate(historyItem.date)
-            ]
-              .filter(Boolean)
-              .join(' ')
-              .toLowerCase()
+      .map((historyItem) => {
+        const questions = historyItem.questions.filter((q) => {
+          const haystack = [
+            q.question,
+            q.status,
+            q.adminName,
+            historyItem.adminName,
+            historyItem.date,
+            formatDate(historyItem.date)
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
 
-            return haystack.includes(normalizedQuery)
-          })
-
-          return {
-            ...historyItem,
-            questions
-          }
+          return haystack.includes(normalizedQuery)
         })
-        .filter((h) => h.questions.length > 0)
+
+        return {
+          ...historyItem,
+          questions
+        }
+      })
+      .filter((h) => h.questions.length > 0)
     : questionHistory
 
   if (loading) {
@@ -221,7 +225,7 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
                     <span>{historyItem.adminName}</span>
                   </div>
                 </div>
-                
+
                 <div className="space-y-3">
                   {historyItem.questions.map((question) => {
                     const answers = getAnswersForQuestion(question.id)
@@ -243,7 +247,7 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
                               <span>{answers.length} answers</span>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-2">
                             <a
                               href={`/admin/answers/${question.id}`}

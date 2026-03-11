@@ -12,6 +12,7 @@ import { subscribeToTeacherConversations } from '@/lib/chatService'
 
 interface UseTeacherChatOptions {
   userId: string
+  enabled?: boolean
 }
 
 export const useTeacherChat = (options: UseTeacherChatOptions) => {
@@ -33,7 +34,7 @@ export const useTeacherChat = (options: UseTeacherChatOptions) => {
 
   // Load assigned conversations for teacher
   useEffect(() => {
-    if (!userId) return
+    if (!userId || options.enabled === false) return
 
     setLoading(true)
 

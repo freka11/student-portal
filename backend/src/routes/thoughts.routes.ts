@@ -1,36 +1,15 @@
 import { Router } from 'express'
-import { getFirestore } from '../config/firebase'
+import { authMiddleware } from '../middleware/auth.middleware'
+import { requireRole } from '../middleware/requireRole'
+import { getThoughts, createThought, deleteThought } from '../controllers/thoughts.controller'
 
-export function createThoughtsRouter() {
-  const router = Router()
-  const db = getFirestore()
+const router = Router()
 
-  // GET /api/thoughts - public thoughts endpoint (mirrors Next.js API)
-  router.get('/', async (req, res) => {
-    try {
-      const dateFilter = req.query.date as string | undefined
+// Public — no auth required
+router.get('/', getThoughts)
 
-      let thoughtsQuery = db.collection('thoughts')
-      
-      if (dateFilter === 'all') {
-        // Get all thoughts for history
-        const snapshot = await thoughtsQuery.get()
-        const thoughts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        return res.json(thoughts)
-      } else {
-        // Get only today's published thoughts
-        const today = new Date().toISOString().split('T')[0]
-        const snapshot = await thoughtsQuery
-          .where('publishDate', '==', today)
-          .get()
-        const thoughts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-        return res.json(thoughts)
-      }
-    } catch (error) {
-      console.error('Error fetching thoughts:', error)
-      return res.json([])
-    }
-  })
+// Admin-only routes
+router.post('/', authMiddleware, requireRole(['admin', 'super_admin']), createThought)
+router.delete('/', authMiddleware, requireRole(['admin', 'super_admin']), deleteThought)
 
-  return router
-}
+export default router

@@ -15,6 +15,7 @@ import { subscribeToConversations, subscribeToTeacherConversations } from '@/lib
 interface UseChatOptions {
   userId: string
   userType: 'admin' | 'student'
+  enabled?: boolean
 }
 
 export const useChat = (options: UseChatOptions) => {
@@ -36,7 +37,7 @@ export const useChat = (options: UseChatOptions) => {
 
   // Load conversations
 useEffect(() => {
-  if (!userId) return
+  if (!userId || options.enabled === false) return
 
   setLoading(true)
 

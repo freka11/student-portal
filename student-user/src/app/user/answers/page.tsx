@@ -6,6 +6,7 @@ import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { FileText, Calendar, Search, Download, Eye, Loader2 } from 'lucide-react'
 import { useStudentUser } from '@/hooks/useStudentUser'
+import { auth } from '@/lib/firebase-client'
 
 interface UserAnswer {
   date: string
@@ -39,42 +40,28 @@ export default function AnswersPage() {
 
   const loadAnswers = async () => {
     try {
+      await auth.authStateReady()
+      const token = await auth.currentUser?.getIdToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
       // Load answers from Firebase API
-      const answersResponse = await fetch('/api/answers', { credentials: 'include' })
+      const answersResponse = await fetch('http://localhost:5000/api/student/answers', { credentials: 'include', headers })
       if (answersResponse.ok) {
         const answersData = await answersResponse.json()
 
         console.log('All answers data:', answersData)
         
         // Ensure answersData is an array
-        const answersArray = Array.isArray(answersData) ? answersData : []
+        const studentAnswers = Array.isArray(answersData) ? answersData : []
         
-        if (answersArray.length === 0) {
+        if (studentAnswers.length === 0) {
           console.log('No answers found in database')
           setAnswers([])
           setFilteredAnswers([])
           return
         }
         
-        // For debugging: Show all answers to see if data exists
-        // In a real app, you would filter by current student's ID
-        const currentStudentId = 'current_student' // This should come from auth
-        const studentAnswers = answersArray.filter((answer: any) => {
-          // Show all answers for debugging, comment this for production
-          return true; //answer.studentId === currentStudentId || !answer.studentId
-        })
-        
-        console.log('Filtered answers for current student:', studentAnswers)
-        
-        if (studentAnswers.length === 0) {
-          console.log('No answers found for current student')
-          setAnswers([])
-          setFilteredAnswers([])
-          return
-        }
-        
         // Load all questions to get question text (only once)
-        const questionsResponse = await fetch('/api/questions?date=all')
+        const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all', { headers })
         let questions: Question[] = []
         if (questionsResponse.ok) {
           questions = await questionsResponse.json()
@@ -136,8 +123,12 @@ export default function AnswersPage() {
     try {
       console.log('Submitting test answer...')
       
+      await auth.authStateReady()
+      const token = await auth.currentUser?.getIdToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
+      
       // First get a question ID to use
-      const questionsResponse = await fetch('/api/questions?date=all')
+      const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all', { headers })
       if (questionsResponse.ok) {
         const questions = await questionsResponse.json()
         if (questions.length > 0) {
@@ -150,10 +141,11 @@ export default function AnswersPage() {
             answer: `This is a test answer submitted at ${new Date().toLocaleString()} to verify the API works correctly.`
           }
           
-          const response = await fetch('/api/answers', {
+          const response = await fetch('http://localhost:5000/api/answers', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
             body: JSON.stringify(testData)
           })
@@ -342,7 +334,7 @@ export default function AnswersPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50  transition-all duration-300 ease-out  m-2">
+        <div className="space-y-4 m-2">
           {displayedAnswers.map((answer, index) => (
             <Card 
               key={index} 

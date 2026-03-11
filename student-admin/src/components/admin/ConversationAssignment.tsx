@@ -31,8 +31,8 @@ export function ConversationAssignment({
     setSelectedTeacher(conversation.assignedTeacherId || '')
   }, [isModalOpen, conversation.assignedTeacherId])
 
-  // Only show assignment UI for super admins
-  if (currentUserRole !== 'super_admin') {
+  // Only show assignment UI for super admins and admins
+  if (currentUserRole !== 'super_admin' && currentUserRole !== 'admin') {
     if (conversation.assignedTeacherName) {
       return (
         <div className="text-xs text-gray-500 mt-1 truncate">

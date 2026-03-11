@@ -10,6 +10,7 @@ import ThoughtEditor from '@/components/admin/ThoughtEditor'
 import { Card, CardContent } from '@/components/admin/Card'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useAdminUser } from '@/hooks/useAdminUser'
+import { auth } from '@/lib/firebase-client'
 
 interface ThoughtHistoryItem {
   id: string
@@ -36,7 +37,9 @@ function ThoughtPageContent() {
       console.log('Loading thought for date:', today)
 
       // Try to fetch from API first
-      const res = await fetch('/api/thoughts')
+      const token = await auth.currentUser?.getIdToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
+      const res = await fetch('http://localhost:5000/api/thoughts', { headers })
       if (res.ok) {
         const thoughts: any[] = await res.json()
         console.log('All thoughts from API:', thoughts)
@@ -134,8 +137,11 @@ function ThoughtPageContent() {
 
     try {
       console.log('Deleting thought with ID:', currentThought.id)
-      const res = await fetch(`/api/thoughts?id=${currentThought.id}`, {
+      const token = await auth.currentUser?.getIdToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
+      const res = await fetch(`http://localhost:5000/api/thoughts?id=${currentThought.id}`, {
         method: 'DELETE',
+        headers
       })
 
       console.log('Delete response status:', res.status)
@@ -174,7 +180,7 @@ function ThoughtPageContent() {
     })
 
   return (
-    <div className="p-6 bg-linear-to-r from-blue-100 to-blue-200  ">
+    <div className="p-6 bg-linear-to-r from-blue-100 to-blue-200 min-h-screen">
       <ToastContainer />
 
       <div className="flex items-center justify-between mb-8">
@@ -256,7 +262,7 @@ function ThoughtPageContent() {
         onClose={handleCloseModal}
         title="Manage Thought of the Day"
         className="max-w-2xl ">
-        <ThoughtEditor onThoughtSaved={handleThoughtSaved} />
+        <ThoughtEditor onThoughtSaved={handleThoughtSaved} initialThought={currentThought?.content || ''} />
       </Modal>
     </div>
   )

@@ -28,12 +28,16 @@ export const useAvailableUsers = (currentUserId: string, userType: 'admin' | 'st
         setError(null)
         console.log('🔍 useAvailableUsers - Loading users for:', { currentUserId, userType })
 
-        // Determine which role to fetch
-        const roleToFetch = userType === 'admin' ? 'student' : 'admin'
-        console.log('🔍 useAvailableUsers - Fetching role:', roleToFetch)
+        let allUsers: any[] = []
+        if (userType === 'admin') {
+          allUsers = await getUsersByRole('student')
+        } else {
+          // If student, they can chat with both admins and super_admins
+          const admins = await getUsersByRole('admin')
+          const superAdmins = await getUsersByRole('super_admin')
+          allUsers = [...admins, ...superAdmins]
+        }
         
-        // Get all users with the target role
-        const allUsers = await getUsersByRole(roleToFetch)
         console.log('🔍 useAvailableUsers - Fetched users:', allUsers)
         
         // Get existing conversations

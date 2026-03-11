@@ -33,7 +33,7 @@ export default function SetupPage() {
     setResult(null)
 
     try {
-      const response = await fetch('/api/setup-users', {
+      const response = await fetch('http://localhost:5000/api/setup-users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       })
@@ -57,7 +57,7 @@ export default function SetupPage() {
 
   const handleCheckUsers = async () => {
     try {
-      const response = await fetch('/api/setup-users')
+      const response = await fetch('http://localhost:5000/api/setup-users')
       const data = await response.json()
 
       if (response.ok) {

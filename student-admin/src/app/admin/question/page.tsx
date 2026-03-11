@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { Plus, Trash2, ChevronUp, ChevronDown,  } from 'lucide-react'
+import { Plus, Trash2, ChevronUp, ChevronDown, Edit } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { Modal } from '@/components/admin/Modal'
@@ -12,6 +12,7 @@ import { HelpCircle, Users } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAdminUser } from '@/hooks/useAdminUser'
+import { auth } from '@/lib/firebase-client'
 
 interface Question {
   id: string
@@ -38,7 +39,9 @@ function QuestionPageContent() {
 
   const fetchQuestions = async () => {
   try {
-    const response = await fetch('/api/questions')
+    const token = await auth.currentUser?.getIdToken()
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
+    const response = await fetch('http://localhost:5000/api/questions', { headers })
     if (!response.ok) throw new Error('Failed to fetch')
 
     const data = await response.json()
@@ -64,10 +67,12 @@ function QuestionPageContent() {
 
   const handleToggleDraft = async (questionId: string, currentStatus?: 'published' | 'draft') => {
   try {
-    const response = await fetch(`/api/questions?id=${questionId}`, {
+    const token = await auth.currentUser?.getIdToken()
+    const response = await fetch(`http://localhost:5000/api/questions?id=${questionId}`, {
       method: 'PATCH', // 👈 use PATCH for updating
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
       body: JSON.stringify({
         status: currentStatus === 'published' ? 'draft' : 'published'
@@ -96,8 +101,11 @@ function QuestionPageContent() {
    
     
     try {
-      const response = await fetch(`/api/questions?id=${questionId}`, {
-        method: 'DELETE'
+      const token = await auth.currentUser?.getIdToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
+      const response = await fetch(`http://localhost:5000/api/questions?id=${questionId}`, {
+        method: 'DELETE',
+        headers
       })
       
       if (response.ok) {
@@ -202,7 +210,11 @@ useEffect(() => {
               {currentQuestions.map((q, index) => (
                 <div 
                   key={q.id} 
-                  className="p-4 rounded-lg border border-purple-200 bg-linear-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out hover:scale-101"
+                  className={`p-4 rounded-lg border transition-all duration-300 ease-out hover:scale-101 ${
+                    q.status === 'draft'
+                      ? 'bg-gray-100 border-gray-300'
+                      : 'border-purple-200 bg-linear-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100'
+                  }`}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -247,6 +259,16 @@ useEffect(() => {
                       >
                         {q.status === 'draft' ? 'Publish' : 'Draft'}
                       </button>
+
+                      {q.status === 'draft' && (
+                        <button
+                          title="Edit Question"
+                          onClick={() => handleOpenModal()}
+                          className="text-xs sm:text-sm text-blue-500 hover:text-white p-2 rounded-xl font-medium hover:bg-blue-600 transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Edit className="h-5 w-5" />
+                        </button>
+                      )}
 
                       <button 
                         onClick={() => handleDeleteQuestion(q.id)}

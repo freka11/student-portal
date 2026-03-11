@@ -76,7 +76,7 @@ export default function LoginPage() {
         // Create session via API (non-blocking)
         let sessionData: any = null
         try {
-          const sessionResponse = await fetch('/api/auth/session', {
+          const sessionResponse = await fetch('http://localhost:5000/api/auth/session', {
             method: 'POST',
             credentials: 'include',
             headers: {

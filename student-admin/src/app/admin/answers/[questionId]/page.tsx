@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Car
 import { Users, Calendar, ArrowLeft, HelpCircle, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useAdminUser } from '@/hooks/useAdminUser'
+import { auth } from '@/lib/firebase-client'
 
 interface StudentAnswer {
   id: string
@@ -38,12 +39,14 @@ export default function AnswersByQuestionPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        const token = await auth.currentUser?.getIdToken()
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
         // Load answers
-        const answersResponse = await fetch('/api/answers')
+        const answersResponse = await fetch('http://localhost:5000/api/answers', { headers })
         const answersData = await answersResponse.json()
         
         // Load questions to find the specific question
-        const questionsResponse = await fetch('/api/questions')
+        const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all', { headers })
         const questionsData = await questionsResponse.json()
         
         // Filter answers for this question

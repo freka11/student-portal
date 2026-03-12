@@ -9,9 +9,9 @@ const router = Router()
 router.get('/', optionalAuth, getQuestions)
 
 // Admin-only routes
-router.post('/', authMiddleware, requireRole(['admin', 'super_admin']), createQuestion)
-router.put('/', authMiddleware, requireRole(['admin', 'super_admin']), updateQuestion)
-router.delete('/', authMiddleware, requireRole(['admin', 'super_admin']), deleteQuestion)
-router.patch('/', authMiddleware, requireRole(['admin', 'super_admin']), patchQuestion)
+router.post('/', authMiddleware, requireRole(['admin', 'super_admin', 'teacher']), createQuestion)
+router.put('/', authMiddleware, requireRole(['admin', 'super_admin', 'teacher']), updateQuestion)
+router.delete('/', authMiddleware, requireRole(['admin', 'super_admin', 'teacher']), deleteQuestion)
+router.patch('/', authMiddleware, requireRole(['admin', 'super_admin', 'teacher']), patchQuestion)
 
 export default router

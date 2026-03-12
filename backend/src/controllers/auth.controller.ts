@@ -133,6 +133,62 @@ export async function getSession(req: Request, res: Response) {
     }
 }
 
+// ─── POST /api/auth/verify ───────────────────────────────────────────
+export async function verifyToken(req: Request, res: Response) {
+    try {
+        const { token } = req.body
+        
+        if (!token) {
+            return res.status(400).json({ error: 'Token is required' })
+        }
+
+        let decoded
+        try {
+            decoded = await adminAuth.verifyIdToken(token)
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err)
+            
+            // Try session cookie verification
+            if (msg.includes('incorrect "iss"') || msg.includes('session.firebase.google.com')) {
+                decoded = await adminAuth.verifySessionCookie(token, true)
+            } else {
+                throw err
+            }
+        }
+
+        const email = (decoded as any).email
+        if (!email) {
+            return res.status(401).json({ error: 'Invalid token' })
+        }
+
+        let role: string = inferRoleFromEmail(email)
+        let publicId: string | undefined
+        let name: string = (decoded as any).name || email.split('@')[0]
+
+        try {
+            const userDoc = await adminFirestore.collection('users').doc(decoded.uid).get()
+            const userData = userDoc.exists ? (userDoc.data() as any) : null
+            if (userData?.role) role = userData.role
+            if (userData?.publicId) publicId = userData.publicId
+            if (typeof userData?.name === 'string' && userData.name.trim()) name = userData.name
+        } catch {
+            // Fall back to defaults
+        }
+
+        res.json({
+            uid: decoded.uid,
+            email,
+            name,
+            role,
+            publicId,
+            userData: { role, publicId, name }
+        })
+    } catch (error) {
+        console.error('Token verification failed:', error)
+        res.status(401).json({ error: 'Invalid token' })
+    }
+}
+
 // ─── Helper ────────────────────────────────────────────────────────
 function inferRoleFromEmail(email: string): string {
     if (email.includes('@admin.com')) {

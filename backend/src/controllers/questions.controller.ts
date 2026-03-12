@@ -5,7 +5,7 @@ import { adminFirestore } from '../config/firebaseAdmin'
 export async function getQuestions(req: Request, res: Response) {
     try {
         const dateFilter = req.query.date as string | undefined
-        const isAdmin = req.user?.role === 'admin' || req.user?.role === 'super_admin'
+        const isAdmin = req.user?.role === 'admin' || req.user?.role === 'super_admin' || req.user?.role === 'teacher'
 
         const questionsQuery = adminFirestore.collection('questions')
 
@@ -34,9 +34,10 @@ export async function getQuestions(req: Request, res: Response) {
 // ─── POST /api/questions (admin auth required) ─────────────────────
 export async function createQuestion(req: Request, res: Response) {
     try {
-        const { question } = req.body
+        const questionText = (req.body?.text as string) ?? (req.body?.question as string)
+        const requestedStatus = req.body?.status as string | undefined
 
-        if (!question || question.trim() === '') {
+        if (!questionText || questionText.trim() === '') {
             res.status(400).json({ success: false, message: 'Question text is required' })
             return
         }
@@ -44,8 +45,8 @@ export async function createQuestion(req: Request, res: Response) {
         const user = req.user!
 
         const questionDoc = {
-            text: question,
-            status: 'published',
+            text: questionText.trim(),
+            status: requestedStatus === 'draft' ? 'draft' : 'published',
             deleted: false,
             createdBy: {
                 uid: user.uid,
@@ -75,7 +76,7 @@ export async function createQuestion(req: Request, res: Response) {
 // ─── PUT /api/questions?id=xxx ──────────────────────────────────────
 export async function updateQuestion(req: Request, res: Response) {
     try {
-        const questionId = req.query.id as string
+        const questionId = (req.query.id as string) || (req.body?.id as string)
         const { text } = req.body
 
         if (!questionId) {
@@ -103,7 +104,7 @@ export async function updateQuestion(req: Request, res: Response) {
 // ─── DELETE /api/questions?id=xxx ───────────────────────────────────
 export async function deleteQuestion(req: Request, res: Response) {
     try {
-        const questionId = req.query.id as string
+        const questionId = (req.query.id as string) || (req.body?.id as string)
 
         if (!questionId) {
             res.status(400).json({ success: false, message: 'Question ID is required' })
@@ -125,7 +126,7 @@ export async function deleteQuestion(req: Request, res: Response) {
 // ─── PATCH /api/questions?id=xxx ────────────────────────────────────
 export async function patchQuestion(req: Request, res: Response) {
     try {
-        const questionId = req.query.id as string
+        const questionId = (req.query.id as string) || (req.body?.id as string)
         const updates = req.body
 
         if (!questionId) {

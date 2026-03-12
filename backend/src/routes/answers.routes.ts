@@ -6,8 +6,8 @@ import { getAnswersAdmin, deleteAnswerAdmin, getStudentAnswers, submitAnswer } f
 const router = Router()
 
 // Admin routes — /api/answers
-router.get('/', authMiddleware, requireRole(['admin', 'super_admin']), getAnswersAdmin)
-router.delete('/', authMiddleware, requireRole(['admin', 'super_admin']), deleteAnswerAdmin)
+router.get('/', authMiddleware, requireRole(['admin', 'super_admin', 'teacher']), getAnswersAdmin)
+router.delete('/', authMiddleware, requireRole(['admin', 'super_admin', 'teacher']), deleteAnswerAdmin)
 
 // Student posting answer
 router.post('/', authMiddleware, submitAnswer)

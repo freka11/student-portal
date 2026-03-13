@@ -12,14 +12,10 @@ import {
   X,
   User,
   LogOut,
+  Crown,
 } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
-
-interface AdminUser {
-  id: string
-  username: string
-  name: string
-}
+import { useAdminUser } from '@/hooks/useAdminUser'
 
 const navigation = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
@@ -27,29 +23,24 @@ const navigation = [
   { name: 'Question', href: '/admin/question', icon: HelpCircle },
   { name: 'Chat', href: '/admin/chat', icon: MessageSquare },
 ]
-  const storedAdmin = localStorage.getItem('adminUser')
 export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [admin, setAdmin] = useState<AdminUser | null>(null)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const { admin, ready } = useAdminUser()
 
   useEffect(() => {
-    const storedAdmin = localStorage.getItem('adminUser')
-    if (!storedAdmin) {
+    if (!ready) return
+    if (!admin) {
       router.replace('/admin/login')
-      return
     }
-    setAdmin(JSON.parse(storedAdmin))
-  }, [router])
+  }, [ready, admin, router])
 
   const logout = () => {
     localStorage.removeItem('adminUser')
     router.push('/admin/login')
   }
-
-  
-  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   return (
     <>
@@ -82,17 +73,27 @@ export function Sidebar() {
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="flex items-center gap-2">
             <User className="h-5 w-5 text-gray-500" />
-            <span className="text-lg text-black">
-              {admin?.name}
-             
-            </span>
+            <div className="flex flex-col">
+              <span className="text-lg text-black">{admin?.name}</span>
+              {admin?.role === 'super_admin' && (
+                <span className="mt-1 inline-flex w-fit items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                  <Crown className="h-3.5 w-3.5" />
+                  Super Admin
+                </span>
+              )}
+              {admin?.role === 'teacher' && (
+                <span className="mt-1 inline-flex w-fit items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                  Teacher
+                </span>
+              )}
+            </div>
           </div>
 
           <Button
             onClick={()=>setShowLogoutModal(true)}
-            className="cursor-pointer hover:scale-105 transition-all duration-200 bg-white hover:bg-red-500"
+            className="cursor-pointer hover:scale-105 transition-all duration-200 bg-white hover:bg-red-500 hover:text-white text-grey-400"
           >
-            <LogOut className="h-4 w-4 text-gray-600" />
+            <LogOut className='w-5 h-5' />
           </Button>
         </div>
 

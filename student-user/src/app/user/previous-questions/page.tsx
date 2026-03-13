@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { Calendar, Clock, User, ChevronDown, ChevronUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/user/Card'
+import { useStudentUser } from '@/hooks/useStudentUser'
+import { auth } from '@/lib/firebase-client'
+import { questions, answers } from '@/lib/api-new'
 
 interface Question {
   id: string
@@ -32,12 +35,16 @@ export default function PreviousQuestionsPage() {
   const [studentAnswers, setStudentAnswers] = useState<StudentAnswer[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set())
+  const { user, ready } = useStudentUser()
 
   useEffect(() => {
     const loadData = async () => {
       try {
+        await auth.authStateReady()
+        const token = await auth.currentUser?.getIdToken()
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
         // Load all questions from API (not just today's)
-        const questionsResponse = await fetch('/api/questions?date=all')
+        const questionsResponse = await questions.get('all')
         let questionsData = []
         
         if (questionsResponse.ok) {
@@ -48,7 +55,7 @@ export default function PreviousQuestionsPage() {
         }
         
         // Load student answers
-        const answersResponse = await fetch('/api/answers')
+        const answersResponse = await answers.get(true)
         let answersData = []
         
         if (answersResponse.ok) {
@@ -94,8 +101,14 @@ export default function PreviousQuestionsPage() {
       }
     }
 
+    if (!ready) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
     loadData()
-  }, [])
+  }, [ready, user])
 
   const getAnswersForQuestion = (questionId: string) => {
     const answers = studentAnswers.filter(answer => answer.questionId === questionId)
@@ -144,7 +157,7 @@ export default function PreviousQuestionsPage() {
 
   return (
  
-    <div className="min-h-screen bg-blue-50 py-8">
+    <div className="min-h-screen  bg-linear-to-r from-blue-100 to-blue-200  py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -169,7 +182,9 @@ export default function PreviousQuestionsPage() {
           <div className="space-y-6">
             {questionHistory.map((historyItem) => {
               // Check if this history item has any published questions
-              const publishedQuestions = historyItem.questions.filter((q: Question) => q.status === 'published')
+              const publishedQuestions = historyItem.questions.filter(
+                (q: Question) => q.status === 'published'
+              )
               if (publishedQuestions.length === 0) return null // Skip if no published questions
               
               return (

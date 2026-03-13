@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    function getUserPublicId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.publicId;
+    }
+    
+    function isSuperAdmin() {
+      return getUserRole() == 'super_admin';
+    }
+    
+    function isTeacher() {
+      return getUserRole() == 'teacher';
+    }
+    
+    function isAdmin() {
+      return getUserRole() == 'admin' || isSuperAdmin() || isTeacher();
+    }
+    
+    function isStudent() {
+      return getUserRole() == 'student';
+    }
+    
+    function isAuthorizedUser(conversationId) {
+      return get(/databases/$(database)/documents/conversations/$(conversationId)).data.authorizedUserIds.hasAll([request.auth.uid]);
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || // Users can read their own profile
+        isAdmin() // Admins can read all users
+      );
+      
+      allow write: if isAuthenticated() && (
+        request.auth.uid == userId || // Users can update their own profile
+        isSuperAdmin() // Only super admins can change roles
+      );
+      
+      allow create: if isAuthenticated(); // Any authenticated user can create their profile
+    }
+
+    // Counters collection rules (for public ID generation)
+    match /counters/{counterId} {
+      allow read, write: if isSuperAdmin(); // Only super admins can manage counters
+    }
+
+    // Conversations collection rules
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || // Super admins can read all conversations
+        isAuthorizedUser(conversationId) // Users can read conversations they're authorized for
+      );
+      
+      allow create: if isAuthenticated() && (
+        isStudent() || // Students can create conversations
+        isAdmin() // Admins can create conversations
+      );
+      
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() || // Super admins can update any conversation
+        isAuthorizedUser(conversationId) // Authorized users can update conversations they're part of
+      );
+      
+      // Assignment-specific rules
+      allow write: if isAuthenticated() && (
+        isSuperAdmin() || // Super admins can assign conversations
+        (isTeacher() && resource.data.assignedTeacherId == request.auth.uid) // Teachers can update assigned conversations
+      );
+    }
+
+    // Messages subcollection rules
+    match /conversations/{conversationId}/messages/{messageId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || // Super admins can read all messages
+        isAuthorizedUser(conversationId) // Users can read messages from conversations they're authorized for
+      );
+      
+      allow create: if isAuthenticated() && isAuthorizedUser(conversationId); // Only authorized users can send messages
+      
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.senderId || // Users can update their own messages
+        isSuperAdmin() // Super admins can update any message
+      );
+    }
+
+    // Questions collection rules
+    match /questions/{questionId} {
+      allow read: if isAuthenticated(); // All authenticated users can read questions
+      allow write: if isAdmin(); // Only admins can write questions
+      allow create: if isAdmin(); // Only admins can create questions
+    }
+
+    // Thoughts collection rules
+    match /thoughts/{thoughtId} {
+      allow read: if isAuthenticated(); // All authenticated users can read thoughts
+      allow write: if isAdmin(); // Only admins can write thoughts
+      allow create: if isAdmin(); // Only admins can create thoughts
+    }
+
+    // Answers collection rules
+    match /answers/{answerId} {
+      allow read: if isAuthenticated(); // All authenticated users can read answers
+      allow write: if isAdmin(); // Only admins can write answers
+      allow create: if isAdmin(); // Only admins can create answers
+    }
+  }
+}

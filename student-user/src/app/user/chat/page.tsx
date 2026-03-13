@@ -1,271 +1,352 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
-import { ChatBubble } from '@/components/admin/ChatBubble'
 import { useToast } from '@/components/admin/Toast'
-import { Send, MessageSquare, Circle, Trash2 } from 'lucide-react'
-
-interface Message {
-  id: string
-  content: string
-  timestamp: string
-  isSent: boolean
-  isDelivered?: boolean
-}
-
-interface Admin {
-  id: string
-  name: string
-  avatar: string
-  lastMessage: string
-  lastMessageTime: string
-  isOnline: boolean
-}
+import { MessageSquare, Search } from 'lucide-react'
+import { useChat } from '@/hooks/useChat'
+import { useAvailableUsers } from '@/hooks/useAvailableUsers'
+import { MessageThread } from '@/components/user/MessageThread'
+import { MessageInput } from '@/components/user/MessageInput'
+import { useStudentUser } from '@/hooks/useStudentUser'
+import { createConversation } from '@/lib/chatService'
 
 export default function UserChatPage() {
-  const [admin, setAdmin] = useState<Admin | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [newMessage, setNewMessage] = useState('')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { user, ready } = useStudentUser()
   const { addToast, ToastContainer } = useToast()
+  const [newMessage, setNewMessage] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
+
+  const {
+    allConversations,
+    conversations,
+    selectedConversation,
+    messages,
+    loading,
+    error,
+    searchQuery,
+    selectConversation,
+    sendMessage,
+    searchConversations,
+  } = useChat({
+    userId: user?.id || '',
+    userType: 'student',
+
+  })
+
+  const { users: availableUsers, loading: usersLoading } = useAvailableUsers(
+    user?.id || '',
+    'student'
+  )
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 Chat Debug - Student User:', user)
+    console.log('🔍 Chat Debug - Available Users:', availableUsers)
+    console.log('🔍 Chat Debug - Users Loading:', usersLoading)
+    console.log('🔍 Chat Debug - Conversations:', conversations)
+    console.log('🔍 Chat Debug - Selected Conversation:', selectedConversation)
+  }, [user, availableUsers, usersLoading, conversations, selectedConversation])
 
   useEffect(() => {
-    const adminInfo: Admin = {
-      id: 'admin-1',
-      name: 'Admin',
-      avatar: 'AD',
-      lastMessage: 'Hello! How can I help you today?',
-      lastMessageTime: 'Just now',
-      isOnline: false // toggle true/false to test
+    if (error) {
+      console.error('Chat error:', error)
+      addToast(error, 'error')
+      
+      // Check if it's a Firestore permission error
+      if (error.includes('permission') || error.includes('Permission')) {
+        console.log('⚠️ Firestore permission error detected!')
+        console.log('Follow these steps to fix:')
+        console.log('1. Open firestore-test-rules.txt file in student-admin folder')
+        console.log('2. Copy the rules to Firebase Console')
+        console.log('3. Publish the rules')
+        console.log('4. Refresh this page')
+      }
     }
+  }, [error, addToast])
 
-    setAdmin(adminInfo)
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation) return
 
-    const savedMessages = JSON.parse(
-      localStorage.getItem('userChatMessages') || '[]'
-    )
-    setMessages(savedMessages)
-  }, [])
-
-  useEffect(() => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, 50)
-  }, [messages])
-
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !admin) return
-
-    const newMsg: Message = {
-      id: Date.now().toString(),
-      content: newMessage,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      isSent: true,
-      isDelivered: false
+    try {
+      setSendingMessage(true)
+      await sendMessage(newMessage)
+      setNewMessage('')
+      addToast('Message sent', 'success')
+    } catch (err) {
+      addToast(
+        err instanceof Error ? err.message : 'Failed to send message',
+        'error'
+      )
+    } finally {
+      setSendingMessage(false)
     }
+  }
 
-    const updatedMessages = [...messages, newMsg]
-    setMessages(updatedMessages)
-    localStorage.setItem('userChatMessages', JSON.stringify(updatedMessages))
-    setNewMessage('')
-    
-    // Simulate delivery after 1 second
-    setTimeout(() => {
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === newMsg.id 
-            ? { ...msg, isDelivered: true }
-            : msg
-        )
+  const handleStartConversation = async (adminId: string, adminName: string) => {
+    if (!user) return
+
+    try {
+      const existing = allConversations.find((c) => c.adminId === adminId)
+      if (existing) {
+        selectConversation(existing.id)
+        return
+      }
+
+      const conversationId = await createConversation(
+        adminId,
+        user.id,
+        adminName,
+        user.name,
+        '',
+        ''
       )
       
-      // Update localStorage
-      const updatedWithDelivery = updatedMessages.map(msg => 
-        msg.id === newMsg.id 
-          ? { ...msg, isDelivered: true }
-          : msg
+      // Select the new conversation
+      const newConv = conversations.find((c) => c.id === conversationId)
+      if (newConv) {
+        selectConversation(conversationId)
+      } else {
+        // If conversation not in list yet, create a temporary one
+        selectConversation(conversationId)
+      }
+      addToast(`Started conversation with ${adminName}`, 'success')
+    } catch (err) {
+      addToast(
+        err instanceof Error ? err.message : 'Failed to start conversation',
+        'error'
       )
-      localStorage.setItem('userChatMessages', JSON.stringify(updatedWithDelivery))
-    }, 1000)
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
     }
   }
 
-  const clearChatHistory = () => {
-    setMessages([])
-    localStorage.removeItem('userChatMessages')
-    addToast('Chat history cleared', 'success')
+  if (!ready) {
+    return (
+      <div className="p-4 sm:p-6 h-full">
+        <div className="text-center py-8">
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="p-4 sm:p-6 h-full">
+        <div className="text-center py-8">
+          <p className="text-gray-500">Please log in to access chat</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="p-4 sm:p-6 h-screen overflow-hidden">
+    <div className="p-4 sm:p-6 h-full">
       <ToastContainer />
 
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-black">Chat with Admin</h1>
-        <p className="text-black mt-2">
-          Get help and support from your admin
-        </p>
+        <p className="text-black mt-2">Get help and support from your admin</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100vh-180px)] min-h-0">
-        {/* Admin Info Card */}
-        <div className="hidden lg:block w-full lg:w-80">
-          <Card className="h-auto lg:h-full">
-            <CardContent className="p-6 flex flex-col h-auto lg:h-full">
-              <div className="text-center mb-6">
-                <div className="relative inline-block">
-                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-2xl font-bold text-blue-600 mx-auto mb-4">
-                    {admin?.avatar || 'AD'}
-                  </div>
-
-                  {/* STATUS DOT */}
-                  <Circle
-                    className={`absolute bottom-4 right-0 h-4 w-4 fill-current ${
-                      admin?.isOnline ? 'text-green-500' : 'text-red-600'
-                    }`}
+        {/* Conversation List */}
+        <div className={`w-full lg:w-80 ${selectedConversation ? 'hidden lg:block' : ''}`}>
+          <Card className="h-full">
+            <CardContent className="p-4 h-full flex flex-col">
+              <div className="-m-4 mb-4 p-4 bg-[#f0f2f5] border-b border-gray-200 justify-between">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search admins..."
+                    value={searchQuery}
+                    onChange={(e) => searchConversations(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                </div>
-
-                <h3 className="text-xl font-semibold text-black">
-                  {admin?.name || 'Admin'}
-                </h3>
-
-                <div className="flex items-center justify-center gap-2 mt-2">
-                  <Circle
-                    className={`h-3 w-3 fill-current ${
-                      admin?.isOnline ? 'text-green-500' : 'text-red-600'
-                    }`}
-                  />
-                  <span className="text-sm text-black">
-                    {admin?.isOnline ? 'Online' : 'Offline'}
-                  </span>
                 </div>
               </div>
 
-              <div className="space-y-4 lg:flex-1">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium text-black mb-2">About</h4>
-                  <p className="text-sm text-black">
-                    Your admin is here to help with questions and support.
-                  </p>
-                </div>
+              <div className="flex-1 overflow-y-auto">
+                {usersLoading && loading ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">Loading chats...</p>
+                  </div>
+                ) : (
+                  (() => {
+                    const q = searchQuery.trim().toLowerCase()
+                    const conversationAdminIds = new Set(allConversations.map((c) => c.adminId))
 
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-black mb-2">
-                    Response Time
-                  </h4>
-                  <p className="text-sm text-black">
-                    Usually responds within a few minutes.
-                  </p>
-                </div>
+                    const remainingAdmins = availableUsers
+                      .filter((u) => !conversationAdminIds.has(u.id))
+                      .filter((u) => {
+                        if (!q) return true
+                        return (
+                          u.name.toLowerCase().includes(q) ||
+                          u.email.toLowerCase().includes(q)
+                        )
+                      })
+                      .sort((a, b) => a.name.localeCompare(b.name))
 
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <h4 className="font-medium text-black mb-2">Available</h4>
-                  <p className="text-sm text-black">
-                    Monday - Friday: 9:00 AM - 6:00 PM
-                  </p>
-                </div>
+                    const hasAny = conversations.length > 0 || remainingAdmins.length > 0
+                    if (!hasAny) {
+                      return (
+                        <div className="text-center py-8">
+                          <p className="text-gray-500">No chats found</p>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div className="space-y-1">
+                        {conversations.map((conversation) => {
+                          const adminUser = availableUsers.find(
+                            (u) => u.id === conversation.adminId
+                          )
+                          return (
+                            <div
+                              key={conversation.id}
+                              onClick={() => selectConversation(conversation.id)}
+                              className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                                selectedConversation?.id === conversation.id
+                                  ? 'bg-blue-50 border border-blue-200'
+                                  : 'hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="relative flex-shrink-0">
+                                  <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+                                    {conversation.adminName.charAt(0).toUpperCase()}
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <p className="font-medium text-black truncate">
+                                      {conversation.adminName}
+                                    </p>
+                                    <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                                      {conversation.lastMessageTime.toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  {adminUser?.email ? (
+                                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                                      {adminUser.email}
+                                    </p>
+                                  ) : null}
+                                  <p className="text-sm text-gray-600 truncate mt-1">
+                                    {conversation.lastMessage || 'No messages yet'}
+                                  </p>
+                                </div>
+                                {conversation.studentUnreadCount > 0 && (
+                                  <div className="bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0">
+                                    {conversation.studentUnreadCount}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+
+                        {remainingAdmins.map((admin) => (
+                          <div
+                            key={admin.id}
+                            onClick={() => handleStartConversation(admin.id, admin.name)}
+                            className="p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="relative flex-shrink-0">
+                                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+                                  {admin.name.charAt(0).toUpperCase()}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-black truncate">{admin.name}</p>
+                                <p className="text-xs text-gray-500 truncate mt-1">{admin.email}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Chat Section */}
-        <div className="flex-1 min-h-0">
-          <Card className="h-full min-h-0">
+        {/* Chat Conversation */}
+        <div className={`flex-1 min-h-0 ${selectedConversation ? '' : 'hidden lg:block'}`}>
+          <Card className="h-full">
             <CardContent className="p-0 h-full flex flex-col min-h-0">
-              {admin ? (
+              {selectedConversation ? (
                 <>
+                  {/* Chat Header */}
                   <div className="p-4 border-b border-gray-200 bg-[#f0f2f5]">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-sm font-bold text-blue-600">
-                            {admin.avatar}
-                          </div>
-
-                          {/* STATUS DOT */}
-                          <Circle
-                            className={`absolute bottom-0 right-0 h-3 w-3 fill-current ${
-                              admin.isOnline
-                                ? 'text-green-500'
-                                : 'text-red-600'
-                            }`}
-                          />
-                        </div>
-
-                        <div>
-                          <p className="font-medium text-[#111b21]">
-                            {admin.name}
-                          </p>
-                          <p className="text-sm text-[#667781]">
-                            {admin.isOnline ? 'Online' : 'Offline'}
-                          </p>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => selectConversation('')}
+                        className="lg:hidden hover:cursor-pointer"
+                      >
+                        Back
+                      </Button>
+                      <div className="relative">
+                        <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+                          {selectedConversation.adminName.charAt(0).toUpperCase()}
                         </div>
                       </div>
-
-                      
+                      <div>
+                        <p className="font-medium text-[#111b21]">
+                          {selectedConversation.adminName}
+                        </p>
+                        <p className="text-sm text-[#667781]">Admin</p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2 bg-white scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 transition-colors" id="chat-messages-container">
-                    {messages.map(message => (
-                      <ChatBubble
-                        key={message.id}
-                        message={message.content}
-                        timestamp={message.timestamp}
-                        isSent={message.isSent}
-                        isDelivered={message.isDelivered}
-                      />
-                    ))}
-                    <div ref={messagesEndRef} />
-                  </div>
+                  {/* Messages */}
+                  <MessageThread
+                    messages={messages}
+                    currentUserId={user.id}
+                    loading={loading}
+                  />
 
-                  <div className="p-3 border-t border-gray-200 bg-[#f0f2f5]">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <input
-                        type="text"
-                        value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Type your message..."
-                        className="flex-1 px-4 py-2 bg-white border border-gray-200 rounded-full focus:outline-none"
-                      />
-
-                      <Button
-                        onClick={handleSendMessage}
-                        disabled={!newMessage.trim()}
-                        className="flex items-center justify-center gap-2 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                          Send
-                        <Send className="h-4 w-4" />
-                      
-                      </Button>
-                    </div>
-                  </div>
+                  {/* Message Input */}
+                  <MessageInput
+                    value={newMessage}
+                    onChange={setNewMessage}
+                    onSend={handleSendMessage}
+                    disabled={!selectedConversation}
+                    loading={sendingMessage}
+                  />
                 </>
               ) : (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
                     <MessageSquare className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-black text-lg">Loading chat...</p>
+                    <p className="text-black text-lg">Select an admin to start chatting</p>
+                    <p className="text-black text-sm mt-2">Choose from the admin list on the left</p>
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
+
+        {!selectedConversation && (
+          <div className="flex-1 min-h-0 lg:hidden">
+            <Card className="h-full">
+              <CardContent className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <MessageSquare className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <p className="text-black text-lg">Select an admin to start chatting</p>
+                  <p className="text-black text-sm mt-2">Choose from the admin list above</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   )

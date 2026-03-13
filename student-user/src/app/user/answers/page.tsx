@@ -5,12 +5,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { FileText, Calendar, Search, Download, Eye, Loader2 } from 'lucide-react'
+import { useStudentUser } from '@/hooks/useStudentUser'
+import { auth } from '@/lib/firebase-client'
+import { answers as answersApi, questions as questionsApi } from '@/lib/api-new'
 
 interface UserAnswer {
   date: string
   question: string
   answer: string
   timestamp: string
+}
+
+interface Question {
+  id: string
+  text: string
+  publishDate?: string
+  status?: 'published' | 'draft'
 }
 
 export default function AnswersPage() {
@@ -27,53 +37,58 @@ export default function AnswersPage() {
   const observer = useRef<IntersectionObserver | null>(null)
   const lastAnswerRef = useRef<HTMLDivElement | null>(null)
   const { addToast, ToastContainer } = useToast()
+  const { user, ready } = useStudentUser()
 
   const loadAnswers = async () => {
     try {
+      await auth.authStateReady()
+      const token = await auth.currentUser?.getIdToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
       // Load answers from Firebase API
-      const answersResponse = await fetch('/api/answers')
+      const answersResponse = await answersApi.get(false)
       if (answersResponse.ok) {
         const answersData = await answersResponse.json()
+
         console.log('All answers data:', answersData)
         
-        if (answersData.length === 0) {
+        // Ensure answersData is an array
+        const studentAnswers = Array.isArray(answersData) ? answersData : []
+        
+        if (studentAnswers.length === 0) {
           console.log('No answers found in database')
           setAnswers([])
           setFilteredAnswers([])
           return
         }
         
-        // For debugging: Show all answers to see if data exists
-        // In a real app, you would filter by current student's ID
-        const currentStudentId = 'current_student' // This should come from auth
-        const studentAnswers = answersData.filter((answer: any) => {
-          // Show all answers for debugging, comment this for production
-          return true; //answer.studentId === currentStudentId || !answer.studentId
-        })
-        
-        console.log('Filtered answers for current student:', studentAnswers)
-        
-        if (studentAnswers.length === 0) {
-          console.log('No answers found for current student')
-          setAnswers([])
-          setFilteredAnswers([])
-          return
-        }
-        
         // Load all questions to get question text (only once)
-        const questionsResponse = await fetch('/api/questions?date=all')
-        let questions = []
+        const questionsResponse = await questionsApi.get('all')
+        let questions: Question[] = []
         if (questionsResponse.ok) {
           questions = await questionsResponse.json()
           console.log('Questions loaded:', questions.length)
         }
+
+        const validQuestionIds = new Set<string>()
+        for (const q of questions) {
+          if (q?.id) validQuestionIds.add(q.id)
+        }
+
+        const questionTextById = new Map<string, string>()
+        for (const q of questions) {
+          if (q?.id && typeof q.text === 'string') {
+            questionTextById.set(q.id, q.text)
+          }
+        }
         
         // Transform and enrich answers data
-        const userAnswers: UserAnswer[] = studentAnswers.map((answer: any) => {
-          const question = questions.find((q: any) => q.id === answer.questionId)
+        const userAnswers: UserAnswer[] = studentAnswers
+          .filter((answer: any) => !!answer?.questionId && validQuestionIds.has(answer.questionId))
+          .map((answer: any) => {
+          const questionText = questionTextById.get(answer.questionId)
           return {
             date: answer.submittedAt?.split('T')[0] || new Date().toISOString().split('T')[0],
-            question: question?.text || question?.question || `Question ID: ${answer.questionId}`,
+            question: questionText || '',
             answer: answer.answer,
             timestamp: answer.submittedAt
           }
@@ -99,15 +114,22 @@ export default function AnswersPage() {
   }
 
   useEffect(() => {
+    if (!ready) return
+    if (!user) return
+
     loadAnswers()
-  }, [])
+  }, [ready, user])
 
   const submitTestAnswer = async () => {
     try {
       console.log('Submitting test answer...')
       
+      await auth.authStateReady()
+      const token = await auth.currentUser?.getIdToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
+      
       // First get a question ID to use
-      const questionsResponse = await fetch('/api/questions?date=all')
+      const questionsResponse = await questionsApi.get('all')
       if (questionsResponse.ok) {
         const questions = await questionsResponse.json()
         if (questions.length > 0) {
@@ -120,12 +142,10 @@ export default function AnswersPage() {
             answer: `This is a test answer submitted at ${new Date().toLocaleString()} to verify the API works correctly.`
           }
           
-          const response = await fetch('/api/answers', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(testData)
+          const response = await answersApi.post({
+            questionId: testQuestion.id,
+            answer: testData.answer,
+            publishDate: new Date().toISOString().split('T')[0]
           })
           
           if (response.ok) {
@@ -224,12 +244,6 @@ export default function AnswersPage() {
 
   const stats = {
     totalAnswers: answers.length,
-    thisWeek: answers.filter(a => {
-      const answerDate = new Date(a.date)
-      const weekAgo = new Date()
-      weekAgo.setDate(weekAgo.getDate() - 7)
-      return answerDate >= weekAgo
-    }).length,
     thisMonth: answers.filter(a => {
       const answerDate = new Date(a.date)
       const currentMonth = new Date().getMonth()
@@ -239,7 +253,7 @@ export default function AnswersPage() {
   }
 
   return (
-    <div className="p-6 bg-purple-50">
+    <div className="p-6 min-h-screen bg-linear-to-r from-purple-100 to-pink-200">
       <ToastContainer />
       
       <div className="mb-8">
@@ -248,7 +262,7 @@ export default function AnswersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 ">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 ">
         <Card >
           <CardContent className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between ">
@@ -258,20 +272,6 @@ export default function AnswersPage() {
               </div>
               <div className="p-3 bg-blue-50 rounded-lg">
                 <FileText className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-black">This Week</p>
-                <p className="text-2xl font-bold text-black mt-1">{stats.thisWeek}</p>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg">
-                <Calendar className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -293,7 +293,7 @@ export default function AnswersPage() {
       </div>
 
       {/* Search and Actions */}
-      <Card className='bg-white p-8'>
+      <Card className='bg-gray-100 p-8 '>
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -332,15 +332,15 @@ export default function AnswersPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 m-2">
           {displayedAnswers.map((answer, index) => (
             <Card 
               key={index} 
-              className="hover:shadow-lg transition-shadow"
+              className="p-4 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 ease-out hover:scale-101 m-2"
               ref={index === displayedAnswers.length - 1 ? lastAnswerElementRef : null}
             >
-              <CardHeader>
-                <div className="flex items-start justify-between">
+              <CardHeader >
+                <div className="flex items-start justify-between ">
                   <div className="flex-1">
                     <CardTitle className="text-lg mb-2">{answer.question}</CardTitle>
                     <CardDescription className="flex items-center gap-2">
@@ -364,8 +364,6 @@ export default function AnswersPage() {
               </CardContent>
             </Card>
           ))}
-          
-          {/* Loading indicator */}
           {isLoading && (
             <div className="flex justify-center py-4">
               <div className="flex items-center gap-2 text-gray-500">

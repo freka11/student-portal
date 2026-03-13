@@ -1,0 +1,21 @@
+import { Request, Response } from 'express';
+export declare function listUsers(_req: Request, res: Response): Promise<void>;
+export declare function createTeacher(req: Request, res: Response): Promise<void>;
+export declare function createSuperadmin(req: Request, res: Response): Promise<void>;
+export declare function getSuperadmins(_req: Request, res: Response): Promise<void>;
+export declare function createDirectSuperadmin(req: Request, res: Response): Promise<void>;
+export declare function promoteToSuperadmin(req: Request, res: Response): Promise<void>;
+export declare function transitionRoles(req: Request, res: Response): Promise<void>;
+export declare function getRoleDistribution(_req: Request, res: Response): Promise<void>;
+export declare function assignConversation(req: Request, res: Response): Promise<void>;
+export declare function backfillPublicIds(_req: Request, res: Response): Promise<void>;
+export declare function getPublicIdStatus(_req: Request, res: Response): Promise<void>;
+export declare function cleanConversations(_req: Request, res: Response): Promise<void>;
+export declare function getConversationStatus(_req: Request, res: Response): Promise<void>;
+export declare function setupCounters(_req: Request, res: Response): Promise<void>;
+export declare function getCounters(_req: Request, res: Response): Promise<void>;
+export declare function setupUsers(_req: Request, res: Response): Promise<void>;
+export declare function getSetupInfo(_req: Request, res: Response): Promise<void>;
+export declare function setupCollections(_req: Request, res: Response): Promise<void>;
+export declare function getTestUsers(_req: Request, res: Response): Promise<void>;
+//# sourceMappingURL=admin.controller.d.ts.map

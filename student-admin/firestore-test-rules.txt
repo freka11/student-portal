@@ -1,0 +1,54 @@
+# ⚠️ URGENT: FIREBASE FIRESTORE RULES FOR CHAT FIX
+# Copy and paste these rules into Firebase Console Firestore Rules
+
+# STEP 1: Go to https://console.firebase.google.com
+# STEP 2: Select project: student-portal-fab55
+# STEP 3: Go to Firestore Database → Rules
+# STEP 4: DELETE ALL EXISTING RULES
+# STEP 5: PASTE THE RULES BELOW
+# STEP 6: Click "Publish"
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // TEMPORARY: Allow all access for authenticated users
+    // This will fix the "Missing or insufficient permissions" error
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+# AFTER PASTING AND PUBLISHING:
+# 1. Go to your chat page: http://localhost:3000/admin/chat
+# 2. Login if needed
+# 3. The chat should now work!
+
+# TROUBLESHOOTING:
+# If still getting errors:
+# 1. Open browser console (F12 → Console)
+# 2. Check for error messages
+# 3. Make sure you're logged in
+# 4. Refresh the page after publishing rules
+
+# PRODUCTION RULES (Use later when chat is working):
+# After chat works, replace with secure rules from firestore.rules file
+# (Remove the "TEMPORARY RULES FOR TESTING" comment block)
+
+# ⚠️ BEFORE YOU START: Create Firestore Database (If not done)
+
+1. Go to https://console.firebase.google.com
+2. Select project: student-portal-fab55
+3. Click **Firestore Database** in left menu
+4. Click **Create database**
+5. Choose **Start in test mode**
+6. Select location (choose closest)
+7. Click **Enable**
+
+# THEN deploy the rules above.
+
+# STILL NOT WORKING?
+1. Open browser console (F12 → Console)
+2. Check error messages
+3. Make sure you see "Firestore permission error detected!" message
+4. Take screenshot of errors if needed

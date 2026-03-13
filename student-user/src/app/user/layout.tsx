@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
 import { Sidebar } from '@/components/user/Sidebar'
-
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useStudentUser } from '@/hooks/useStudentUser'
+import { useEffect } from 'react'
 
 export default function UserLayout({
 
@@ -11,8 +11,27 @@ export default function UserLayout({
 }: {
   children: React.ReactNode
 }) {
-    const pathname = usePathname()
-   const isLoginPage =  pathname === '/user/login'
+  const pathname = usePathname()
+  const router = useRouter()
+  const { user, ready } = useStudentUser()
+
+  const isLoginPage = pathname === '/user/login'
+  const isSignupPage = pathname === '/user/signup'
+  const isAuthPage = isLoginPage || isSignupPage
+
+  useEffect(() => {
+    if (ready && !user && !isAuthPage) {
+      router.push('/user/login')
+    }
+  }, [user, ready, isAuthPage, router])
+
+  if (!ready || (!user && !isAuthPage)) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-gray-500 animate-pulse">Loading...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -21,7 +40,7 @@ export default function UserLayout({
         className={`relative transition-all duration-300 ease-in-out        
         overflow-hidden`}
       >
-        {!isLoginPage&&<Sidebar/>}
+        {!isLoginPage && !isSignupPage && <Sidebar/>}
       </div>
 
       {/* Main Content */}

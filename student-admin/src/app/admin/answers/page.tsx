@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Car
 import { Button } from '@/components/admin/Button'
 import { FileText, Users, Calendar, Search, Trash2, Eye } from 'lucide-react'
 import Link from 'next/link'
+import { useAdminUser } from '@/hooks/useAdminUser'
+import { auth } from '@/lib/firebase-client'
+import { config } from '@/lib/config'
 
 interface StudentAnswer {
   id: string
@@ -20,7 +23,6 @@ interface Question {
   text: string
   publishDate: string
   createdBy: string
-  adminId: string
   status: 'published' | 'draft'
 }
 
@@ -30,16 +32,21 @@ export default function AnswersPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredAnswers, setFilteredAnswers] = useState<StudentAnswer[]>([])
+  const { admin, ready } = useAdminUser()
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load answers from Firebase API
-        const answersResponse = await fetch('/api/answers')
+        await auth.authStateReady()
+        const token = await auth.currentUser?.getIdToken()
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+
+        // Load answers from backend API (protected)
+        const answersResponse = await fetch(`${config.API_BASE_URL}/api/answers`, { headers })
         const answersData = await answersResponse.json()
         
         // Load questions to get question text
-        const questionsResponse = await fetch('/api/questions?date=all')
+        const questionsResponse = await fetch(`${config.API_BASE_URL}/api/questions?date=all`, { headers })
         const questionsData = await questionsResponse.json()
         
         setAnswers(answersData)
@@ -55,8 +62,14 @@ export default function AnswersPage() {
       }
     }
 
+    if (!ready) return
+    if (!admin) {
+      setLoading(false)
+      return
+    }
+
     loadData()
-  }, [])
+  }, [ready, admin])
 
   useEffect(() => {
     // Filter answers based on search query
@@ -94,8 +107,13 @@ export default function AnswersPage() {
     if (!confirm('Are you sure you want to delete this answer?')) return
 
     try {
-      const response = await fetch(`/api/answers?id=${answerId}`, {
+      await auth.authStateReady()
+      const token = await auth.currentUser?.getIdToken()
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+
+      const response = await fetch(`${config.API_BASE_URL}/api/answers?id=${answerId}`, {
         method: 'DELETE',
+        headers,
       })
 
       if (response.ok) {

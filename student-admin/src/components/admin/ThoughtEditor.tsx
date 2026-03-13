@@ -5,32 +5,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/admin/Button'
 import { Textarea } from '@/components/admin/Textarea'
 import { Lightbulb, Save, Eye } from 'lucide-react'
+import { useAdminUser } from '@/hooks/useAdminUser'
+import { auth } from '@/lib/firebase-client'
+import { config } from '@/lib/config'
 
 interface ThoughtHistoryItem {
   id: string
   content: string
   date: string
   adminName: string
-  adminId: string
 }
 
 interface ThoughtEditorProps {
   onThoughtSaved: (thought: string) => void
+  initialThought?: string
 }
 
-export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
+export default function ThoughtEditor({ onThoughtSaved, initialThought = '' }: ThoughtEditorProps) {
   const [thought, setThought] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [existingThought, setExistingThought] = useState('')
+  const { admin } = useAdminUser()
 
   // Load existing thought (start fresh each time)
   useEffect(() => {
     // Clear any stale localStorage data to ensure fresh state
     localStorage.removeItem('dailyThought')
-    setThought('')
-    setExistingThought('')
-  }, [])
+    setThought(initialThought)
+    setExistingThought(initialThought)
+  }, [initialThought])
 
   const createNewThoughtItem = (content: string): ThoughtHistoryItem => {
     const today = new Date()
@@ -38,8 +42,7 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
       id: Date.now().toString(),
       content,
       date: today.toISOString().split('T')[0], // YYYY-MM-DD format
-      adminName: 'Current Admin',
-      adminId: 'admin01'
+      adminName: admin?.name || 'Admin',
     }
   }
 
@@ -47,36 +50,41 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
     if (!thought.trim()) return
 
     setIsSaving(true)
-    
+
     try {
       // Send correct data structure to API
       const requestData = {
         thought: thought.trim()
       }
-      
+
       console.log('Sending thought data:', requestData)
-      
-      const response = await fetch('/api/thoughts', {
+
+      await auth.authStateReady()
+      const token = await auth.currentUser?.getIdToken()
+
+      const response = await fetch(`${config.API_BASE_URL}/api/thoughts`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify(requestData),
       })
-      
+
       console.log('API Response status:', response.status)
       console.log('API Response ok:', response.ok)
-      
+
       if (response.ok) {
         const responseData = await response.json()
         console.log('API Response data:', responseData)
-        
+
         // Create thought item for event/callback
         const newThoughtItem = createNewThoughtItem(thought)
-        
+
         // Emit event for other components
         window.dispatchEvent(new CustomEvent('newThought', { detail: newThoughtItem }))
-        
+
         onThoughtSaved(thought)
       } else {
         const errorText = await response.text()
@@ -98,36 +106,41 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
     if (!thought.trim()) return
 
     setIsSaving(true)
-    
+
     try {
       // Send correct data structure to API
       const requestData = {
         thought: thought.trim()
       }
-      
+
       console.log('Sending thought data:', requestData)
-      
-      const response = await fetch('/api/thoughts', {
+
+      await auth.authStateReady()
+      const token = await auth.currentUser?.getIdToken()
+
+      const response = await fetch(`${config.API_BASE_URL}/api/thoughts`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify(requestData),
       })
-      
+
       console.log('API Response status:', response.status)
       console.log('API Response ok:', response.ok)
-      
+
       if (response.ok) {
         const responseData = await response.json()
         console.log('API Response data:', responseData)
-        
+
         // Create thought item for event/callback
         const newThoughtItem = createNewThoughtItem(thought)
-        
+
         // Emit event for other components
         window.dispatchEvent(new CustomEvent('newThought', { detail: newThoughtItem }))
-        
+
         onThoughtSaved(thought)
       } else {
         const errorText = await response.text()
@@ -162,8 +175,8 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
           {isNewThought ? 'Create Thought' : 'Update Thought'}
         </CardTitle>
         <CardDescription>
-          {isNewThought 
-            ? 'Share an inspirational thought for today' 
+          {isNewThought
+            ? 'Share an inspirational thought for today'
             : 'Edit today\'s thought'
           }
         </CardDescription>
@@ -182,11 +195,11 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
             className="min-h-32"
           />
         </div>
-        
+
         <div className="flex gap-3">
           {isNewThought ? (
-            <Button 
-              onClick={handleSave} 
+            <Button
+              onClick={handleSave}
               disabled={isSaving}
               className="flex items-center gap-2"
             >
@@ -194,8 +207,8 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
               {isSaving ? 'Saving...' : 'Save Thought'}
             </Button>
           ) : (
-            <Button 
-              onClick={handleUpdate} 
+            <Button
+              onClick={handleUpdate}
               disabled={isSaving}
               className="flex items-center gap-2"
             >
@@ -203,9 +216,9 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
               {isSaving ? 'Updating...' : 'Update Thought'}
             </Button>
           )}
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             onClick={() => setShowPreview(!showPreview)}
             className="flex items-center gap-2"
           >
@@ -234,6 +247,6 @@ export default function ThoughtEditor({ onThoughtSaved }: ThoughtEditorProps) {
         )}
       </CardContent>
     </Card>
-    
+
   )
 }

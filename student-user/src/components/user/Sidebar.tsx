@@ -1,21 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState } from 'react'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/admin/Button'
-import { LogOut } from 'lucide-react'
-import { User } from 'lucide-react'
-import {
-  LayoutDashboard,
-  MessageSquare,
-  FileText,
-  Calendar,
-  Menu,
-  X,
-} from 'lucide-react'
+import { LogOut, User, LayoutDashboard, MessageSquare, FileText, Calendar, Menu, X } from 'lucide-react'
+import { useStudentUser } from '@/hooks/useStudentUser'
 
 const navigation = [
   { name: 'Dashboard', href: '/user/dashboard', icon: LayoutDashboard },
@@ -33,21 +23,17 @@ const tabs = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-
-
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const { user, ready } = useStudentUser()
 
-    useEffect(() => {
-    const storedUser = localStorage.getItem('user')
-    if (!storedUser) {
+  useEffect(() => {
+    if (!ready) return
+    if (!user) {
       router.replace('/user/login')
-      return
     }
-    setUser(JSON.parse(storedUser))
-  }, [router])
+  }, [ready, user, router])
 
   const logout = () => {
     localStorage.removeItem('user')
@@ -95,9 +81,9 @@ export function Sidebar() {
               
               onClick={()=>setShowLogoutModal(true)}
             
-              className='cursor-pointer hover:scale-105 transition-all duration-200 bg-white hover:bg-red-500'
+              className='cursor-pointer hover:scale-105 transition-all duration-200 bg-white hover:text-white text-grey-400 hover:bg-red-500 '
             >
-              <LogOut className="h-4 w-4 text-gray-600" />
+              <LogOut className="h-5 w-5" />
             </Button>
           </div>
         <div className="p-4 lg:p-6">

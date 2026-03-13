@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Trash2, Lightbulb } from 'lucide-react'
+import { useState, useEffect, Suspense } from 'react'
+import { Trash2, Lightbulb, Plus } from 'lucide-react'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { Modal } from '@/components/admin/Modal'
@@ -9,17 +9,17 @@ import { ThoughtHistory } from '@/components/admin/ThoughtHistory'
 import ThoughtEditor from '@/components/admin/ThoughtEditor'
 import { Card, CardContent } from '@/components/admin/Card'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { useAdminUser } from '@/hooks/useAdminUser'
+import { auth } from '@/lib/firebase-client'
 
 interface ThoughtHistoryItem {
   id: string
   content: string
   date: string
   adminName: string
-  adminId: string
 }
 
-
-export default function ThoughtPage() {
+function ThoughtPageContent() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentThought, setCurrentThought] =
     useState<ThoughtHistoryItem | null>(null)
@@ -29,6 +29,7 @@ export default function ThoughtPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
+  const { admin, ready } = useAdminUser()
 
   const loadTodayThought = async () => {
     try {
@@ -36,7 +37,9 @@ export default function ThoughtPage() {
       console.log('Loading thought for date:', today)
 
       // Try to fetch from API first
-      const res = await fetch('/api/thoughts')
+      const token = await auth.currentUser?.getIdToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
+      const res = await fetch('http://localhost:5000/api/thoughts', { headers })
       if (res.ok) {
         const thoughts: any[] = await res.json()
         console.log('All thoughts from API:', thoughts)
@@ -47,7 +50,6 @@ export default function ThoughtPage() {
           content: thought.text,
           date: thought.publishDate,
           adminName: thought.createdBy?.name || 'Admin',
-          adminId: thought.createdBy?.uid || 'admin'
         }))
 
         const todayThought = mappedThoughts.find(t => t.date === today)
@@ -74,7 +76,6 @@ export default function ThoughtPage() {
           content: savedThought,
           date: today,
           adminName: 'Current Admin',
-          adminId: 'admin_current'
         }
         setCurrentThought(thoughtItem)
       } else {
@@ -89,10 +90,13 @@ export default function ThoughtPage() {
 
   /* ---------- Load today's thought ---------- */
   useEffect(() => {
+    if (!ready) return
+    if (!admin) return
+
     // Clear any stale localStorage data
     localStorage.removeItem('dailyThought')
     loadTodayThought()
-  }, [])
+  }, [ready, admin])
 
   /* ---------- Open modal via ?add=true and clean URL ---------- */
   useEffect(() => {
@@ -133,8 +137,11 @@ export default function ThoughtPage() {
 
     try {
       console.log('Deleting thought with ID:', currentThought.id)
-      const res = await fetch(`/api/thoughts?id=${currentThought.id}`, {
+      const token = await auth.currentUser?.getIdToken()
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
+      const res = await fetch(`http://localhost:5000/api/thoughts?id=${currentThought.id}`, {
         method: 'DELETE',
+        headers
       })
 
       console.log('Delete response status:', res.status)
@@ -172,9 +179,8 @@ export default function ThoughtPage() {
       day: 'numeric',
     })
 
-  /* ---------- UI ---------- */
   return (
-    <div className="p-6">
+    <div className="p-6 bg-linear-to-r from-blue-100 to-blue-200 min-h-screen">
       <ToastContainer />
 
       <div className="flex items-center justify-between mb-8">
@@ -187,15 +193,16 @@ export default function ThoughtPage() {
 
         <Button
           onClick={handleOpenModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-blue-700 hover:bg-blue-700 text-white w-full sm:w-auto hover:pr-8 transition-all ease-in-out duration-300 active:scale-90"
         >
-          Add Thought
+          <Plus className="m-auto" />
+          
         </Button>
       </div>
 
       {!currentThought && (
-        <Card className="mb-8">
-          <CardContent className="p-6 text-center">
+        <Card className="mb-8 bg-linear-to-l from-blue-100 to-blue-50 ">
+          <CardContent className="p-6 text-center ">
             <Lightbulb className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               No Thought for Today
@@ -205,17 +212,17 @@ export default function ThoughtPage() {
             </p>
             <Button
               onClick={handleOpenModal}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-blue-500 hover:bg-blue-700 text-white hover:scale-103 transition-all duration-200"
             >
-              Add Today's Thought
+              Add Thought
             </Button>
           </CardContent>
         </Card>
       )}
 
       {currentThought && (
-        <Card className="mb-8 bg-linear-to-r from-blue-50 to-indigo-50">
-          <CardContent className="p-6">
+        <Card className="mb-8 bg-linear-to-r from-blue-50 to-indigo-50 hover:scale-103 transition-all duration-200 ">          
+        <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <Lightbulb className="h-5 w-5 text-blue-600" />
               <span className="text-sm font-medium text-blue-900">
@@ -255,8 +262,16 @@ export default function ThoughtPage() {
         onClose={handleCloseModal}
         title="Manage Thought of the Day"
         className="max-w-2xl ">
-        <ThoughtEditor onThoughtSaved={handleThoughtSaved} />
+        <ThoughtEditor onThoughtSaved={handleThoughtSaved} initialThought={currentThought?.content || ''} />
       </Modal>
     </div>
+  )
+}
+
+export default function ThoughtPage() {
+  return (
+    <Suspense fallback={null}>
+      <ThoughtPageContent />
+    </Suspense>
   )
 }

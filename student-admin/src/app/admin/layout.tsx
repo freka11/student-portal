@@ -2,6 +2,9 @@
 
 import { usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/admin/Sidebar'
+import { useAdminUser } from '@/hooks/useAdminUser'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 
 
@@ -11,13 +14,28 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { admin, ready } = useAdminUser()
 
   const isLoginPage = pathname === '/admin/login'
 
+  useEffect(() => {
+    if (ready && !admin && !isLoginPage) {
+      router.push('/admin/login')
+    }
+  }, [admin, ready, isLoginPage, router])
+
+  if (!ready || (!admin && !isLoginPage)) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-gray-500 animate-pulse">Loading...</div>
+      </div>
+    )
+  }
+
   return (
     <>
-
-    <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-gray-50">
       {!isLoginPage && <Sidebar />}
      
       <main className="flex-1 overflow-y-auto">

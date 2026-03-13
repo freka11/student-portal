@@ -26,8 +26,9 @@ export async function signInWithGoogle() {
   const result = await signInWithPopup(auth, provider)
   const token = await result.user.getIdToken()
 
-  await fetch('/api/auth/session', {
+  await fetch('http://localhost:5000/api/auth/session', {
     method: 'POST',
+    credentials: 'include',
     headers: {
       Authorization: `Bearer ${token}`,
     },

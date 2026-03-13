@@ -6,9 +6,11 @@ interface ChatBubbleProps {
   timestamp: string
   isSent: boolean
   isDelivered?: boolean
+  senderName: string
+  isCurrentUser: boolean
 }
 
-export function ChatBubble({ message, timestamp, isSent, isDelivered = false }: ChatBubbleProps) {
+export function ChatBubble({ message, timestamp, isSent, isDelivered = false, senderName, isCurrentUser }: ChatBubbleProps) {
   return (
     <div className={cn('flex', isSent ? 'justify-end' : 'justify-start')}>
       <div
@@ -19,6 +21,14 @@ export function ChatBubble({ message, timestamp, isSent, isDelivered = false }: 
             : 'bg-gray-100 text-gray-900'
         )}
       >
+        <p
+          className={cn(
+            'text-[11px] font-medium mb-1',
+            isSent ? 'text-white/80' : 'text-gray-500'
+          )}
+        >
+          {isCurrentUser ? 'You' : senderName}
+        </p>
         <p className="text-sm">{message}</p>
         <div className={cn('flex items-center justify-between mt-1', isSent ? 'text-blue-100' : 'text-gray-500')}>
           <p className="text-xs">{timestamp}</p>

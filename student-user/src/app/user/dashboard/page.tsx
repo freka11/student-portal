@@ -8,6 +8,7 @@ import { useToast } from '@/components/admin/Toast'
 import { Lightbulb, HelpCircle, MessageSquare, FileText, CheckCircle, Send, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { useStudentUser } from '@/hooks/useStudentUser'
 import { auth } from '@/lib/firebase-client'
+import { answers, questions, thoughts, streak } from '@/lib/api-new'
 
 interface Thought {
   id: string
@@ -76,20 +77,10 @@ function AnswerModal({ question, user, existingAnswer, onClose, onAnswerSubmitte
     
     try {
       await auth.authStateReady()
-      const token = await auth.currentUser?.getIdToken()
-      // Submit answer to Firebase API
-      const response = await fetch('http://localhost:5000/api/answers', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          questionId: question.id,
-          answer: answer.trim(),
-          publishDate: question.publishDate || new Date().toISOString().split('T')[0]
-        })
+      const response = await answers.post({
+        questionId: question.id,
+        answer: answer.trim(),
+        publishDate: question.publishDate || new Date().toISOString().split('T')[0]
       })
 
       if (response.ok) {
@@ -218,7 +209,7 @@ export default function SimpleDashboard() {
         const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
 
         // Load thoughts from API
-        const thoughtsResponse = await fetch('http://localhost:5000/api/thoughts', { headers })
+        const thoughtsResponse = await thoughts.get()
         if (!thoughtsResponse.ok) {
           throw new Error(`Failed to fetch thoughts: ${thoughtsResponse.status}`)
         }
@@ -229,7 +220,7 @@ export default function SimpleDashboard() {
         const todayThought = thoughtsArray.find((thought: Thought) => thought.publishDate === today)
         
         // Load questions from API
-        const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all', { headers })
+        const questionsResponse = await questions.get('all')
         if (!questionsResponse.ok) {
           throw new Error(`Failed to fetch questions: ${questionsResponse.status}`)
         }
@@ -247,7 +238,7 @@ export default function SimpleDashboard() {
         )
 
         // Load student's answers once and build lookups
-        const answersResponse = await fetch('http://localhost:5000/api/student/answers', { credentials: 'include', headers })
+        const answersResponse = await answers.get(false)
         const answersData = answersResponse.ok ? await answersResponse.json() : []
         const answersArray = Array.isArray(answersData) ? answersData : []
 
@@ -298,7 +289,7 @@ export default function SimpleDashboard() {
 
         setHasAnsweredToday(todayQuestions.some(q => nextAnswered.has(q.id)))
 
-        const streakResponse = await fetch('http://localhost:5000/api/streak', { credentials: 'include', headers })
+        const streakResponse = await streak.get()
         if (streakResponse.ok) {
           const streakData = await streakResponse.json()
           const streak = streakData?.streak

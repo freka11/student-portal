@@ -1,16 +1,16 @@
 // Public ID generation utility for sequential IDs
 // Uses Firestore transactions to ensure no duplicate IDs
 
-import { adminFirestore } from './firebase-admin'
-import { FieldValue } from 'firebase-admin/firestore'
+import { doc, runTransaction, serverTimestamp } from 'firebase/firestore'
+import { db } from './firebase-client'
 
 export type UserRole = 'student' | 'teacher' | 'super_admin' | 'admin'
 
 interface CounterData {
   lastNumber: number
   prefix: string
-  createdAt: FieldValue
-  updatedAt: FieldValue
+  createdAt: unknown
+  updatedAt: unknown
 }
 
 /**
@@ -20,10 +20,10 @@ interface CounterData {
  */
 export async function generatePublicId(role: UserRole): Promise<string> {
   const counterId = getCounterId(role)
-  const counterRef = adminFirestore.collection('counters').doc(counterId)
+  const counterRef = doc(db, 'counters', counterId)
 
   try {
-    const result = await adminFirestore.runTransaction(async (transaction) => {
+    const result = await runTransaction(db, async (transaction) => {
       const counterDoc = await transaction.get(counterRef)
       
       if (!counterDoc.exists) {
@@ -37,7 +37,7 @@ export async function generatePublicId(role: UserRole): Promise<string> {
       // Update the counter
       transaction.update(counterRef, {
         lastNumber: nextNumber,
-        updatedAt: FieldValue.serverTimestamp()
+        updatedAt: serverTimestamp(),
       })
 
       return publicId
@@ -104,19 +104,22 @@ export async function initializeCounters(): Promise<void> {
     { id: 'superAdminCounter', lastNumber: 0, prefix: 'SUP' }
   ]
 
-  const batch = adminFirestore.batch()
+  await runTransaction(db, async (transaction) => {
+    for (const counter of counters) {
+      const counterRef = doc(db, 'counters', counter.id)
+      const snap = await transaction.get(counterRef)
 
-  for (const counter of counters) {
-    const counterRef = adminFirestore.collection('counters').doc(counter.id)
-    batch.set(counterRef, {
-      lastNumber: counter.lastNumber,
-      prefix: counter.prefix,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp()
-    }, { merge: true }) // Use merge to avoid overwriting existing counters
-  }
+      if (!snap.exists()) {
+        transaction.set(counterRef, {
+          lastNumber: counter.lastNumber,
+          prefix: counter.prefix,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      }
+    }
+  })
 
-  await batch.commit()
   console.log('✅ Counters initialized successfully')
 }
 
@@ -125,18 +128,19 @@ export async function initializeCounters(): Promise<void> {
  * @returns Promise<object> - Current counter values
  */
 export async function getCounterValues(): Promise<Record<string, { lastNumber: number; prefix: string }>> {
-  const countersSnapshot = await adminFirestore.collection('counters').get()
-  const counters: Record<string, { lastNumber: number; prefix: string }> = {}
+  const ids = ['studentCounter', 'adminCounter', 'teacherCounter', 'superAdminCounter']
 
-  countersSnapshot.forEach(doc => {
-    const data = doc.data()
-    counters[doc.id] = {
-      lastNumber: data.lastNumber,
-      prefix: data.prefix
-    }
-  })
+  const result: Record<string, { lastNumber: number; prefix: string }> = {}
+  await Promise.all(
+    ids.map(async (id) => {
+      const snap = await runTransaction(db, async (transaction) => transaction.get(doc(db, 'counters', id)))
+      if (!snap.exists()) return
+      const data = snap.data() as any
+      result[id] = { lastNumber: data.lastNumber, prefix: data.prefix }
+    })
+  )
 
-  return counters
+  return result
 }
 
 /**

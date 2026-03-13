@@ -7,6 +7,7 @@ import { Users, Calendar, ArrowLeft, HelpCircle, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useAdminUser } from '@/hooks/useAdminUser'
 import { auth } from '@/lib/firebase-client'
+import { config } from '@/lib/config'
 
 interface StudentAnswer {
   id: string
@@ -39,33 +40,44 @@ export default function AnswersByQuestionPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        await auth.authStateReady()
         const token = await auth.currentUser?.getIdToken()
-        const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+
         // Load answers
-        const answersResponse = await fetch('http://localhost:5000/api/answers', { headers })
-        const answersData = await answersResponse.json()
+        const answersResponse = await fetch(`${config.API_BASE_URL}/api/answers`, { headers })
+        const rawAnswers = await answersResponse.json()
+        const answersData: StudentAnswer[] = Array.isArray(rawAnswers)
+          ? rawAnswers
+          : Array.isArray((rawAnswers as any)?.answers)
+            ? (rawAnswers as any).answers
+            : []
         
         // Load questions to find the specific question
-        const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all', { headers })
-        const questionsData = await questionsResponse.json()
+        const questionsResponse = await fetch(`${config.API_BASE_URL}/api/questions?date=all`, { headers })
+        const rawQuestions = await questionsResponse.json()
+        const questionsData: any[] = Array.isArray(rawQuestions)
+          ? rawQuestions
+          : Array.isArray((rawQuestions as any)?.questions)
+            ? (rawQuestions as any).questions
+            : []
         
         // Filter answers for this question
-        const filteredAnswers = answersData.filter((answer: StudentAnswer) => answer.questionId === questionId)
-        setAnswers(filteredAnswers)
-        setFilteredAnswers(filteredAnswers)
+        const nextAnswers = answersData.filter((answer: StudentAnswer) => answer.questionId === questionId)
+        setAnswers(nextAnswers)
+        setFilteredAnswers(nextAnswers)
         
         // Find the question details
-        let foundQuestion: Question | null = null
-        for (const historyItem of questionsData) {
-          if (historyItem.questions && Array.isArray(historyItem.questions)) {
-            const q = historyItem.questions.find((q: Question) => q.id === questionId)
-            if (q) {
-              foundQuestion = q
-              break
-            }
+        const q = questionsData.find((item: any) => item?.id === questionId)
+        setQuestion(q
+          ? {
+            id: q.id,
+            question: q.text,
+            date: q.publishDate,
+            adminName: q.createdBy?.name || 'Admin User',
+            status: q.status === 'draft' ? 'draft' : 'published',
           }
-        }
-        setQuestion(foundQuestion)
+          : null)
       } catch (error) {
         console.error('Failed to load data:', error)
       } finally {

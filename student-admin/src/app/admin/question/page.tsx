@@ -13,6 +13,7 @@ import { useSearchParams } from 'next/navigation'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAdminUser } from '@/hooks/useAdminUser'
 import { auth } from '@/lib/firebase-client'
+import { config } from '@/lib/config'
 
 interface Question {
   id: string
@@ -39,9 +40,10 @@ function QuestionPageContent() {
 
   const fetchQuestions = async () => {
   try {
+    await auth.authStateReady()
     const token = await auth.currentUser?.getIdToken()
     const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
-    const response = await fetch('http://localhost:5000/api/questions', { headers })
+    const response = await fetch(`${config.API_BASE_URL}/api/questions`, { headers })
     if (!response.ok) throw new Error('Failed to fetch')
 
     const data = await response.json()
@@ -67,8 +69,9 @@ function QuestionPageContent() {
 
   const handleToggleDraft = async (questionId: string, currentStatus?: 'published' | 'draft') => {
   try {
+    await auth.authStateReady()
     const token = await auth.currentUser?.getIdToken()
-    const response = await fetch(`http://localhost:5000/api/questions?id=${questionId}`, {
+    const response = await fetch(`${config.API_BASE_URL}/api/questions?id=${questionId}`, {
       method: 'PATCH', // 👈 use PATCH for updating
       headers: {
         'Content-Type': 'application/json',
@@ -101,9 +104,10 @@ function QuestionPageContent() {
    
     
     try {
+      await auth.authStateReady()
       const token = await auth.currentUser?.getIdToken()
       const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
-      const response = await fetch(`http://localhost:5000/api/questions?id=${questionId}`, {
+      const response = await fetch(`${config.API_BASE_URL}/api/questions?id=${questionId}`, {
         method: 'DELETE',
         headers
       })

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
 import { HelpCircle, Calendar, User, Plus, Trash2, Users, Search, X } from 'lucide-react'
 import { auth } from '@/lib/firebase-client'
+import { config } from '@/lib/config'
 
 interface Question {
   id: string
@@ -40,18 +41,18 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
   const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
-    // Load data from JSON files
-    const loadData = async () => {
+    const loadQuestions = async () => {
       try {
+        await auth.authStateReady()
         const token = await auth.currentUser?.getIdToken()
         const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
 
         // Load questions history
-        const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all', { headers })
+        const questionsResponse = await fetch(`${config.API_BASE_URL}/api/questions?date=all`, { headers })
         const questionsData = await questionsResponse.json()
 
         // Load student answers
-        const answersResponse = await fetch('http://localhost:5000/api/answers', { headers })
+        const answersResponse = await fetch(`${config.API_BASE_URL}/api/answers`, { headers })
         const answersData = await answersResponse.json()
 
         // Group individual questions by date to match QuestionHistoryItem structure
@@ -96,7 +97,7 @@ export function QuestionHistory({ onQuestionAdded }: QuestionHistoryProps) {
       }
     }
 
-    loadData()
+    loadQuestions()
   }, [])
 
   const getAnswersForQuestion = (questionId: string) => {

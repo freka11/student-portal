@@ -1,10 +1,10 @@
 /**
  * API client for backend. All student API calls go through this.
- * Set NEXT_PUBLIC_API_BASE_URL to point to backend (default: http://localhost:5000)
+ * Set NEXT_PUBLIC_API_URL to point to backend (default: http://localhost:5000)
  */
 import { getStudentIdToken } from './auth'
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:5000'
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getStudentIdToken()

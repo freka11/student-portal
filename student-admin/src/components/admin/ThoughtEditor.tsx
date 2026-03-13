@@ -7,6 +7,7 @@ import { Textarea } from '@/components/admin/Textarea'
 import { Lightbulb, Save, Eye } from 'lucide-react'
 import { useAdminUser } from '@/hooks/useAdminUser'
 import { auth } from '@/lib/firebase-client'
+import { config } from '@/lib/config'
 
 interface ThoughtHistoryItem {
   id: string
@@ -58,9 +59,10 @@ export default function ThoughtEditor({ onThoughtSaved, initialThought = '' }: T
 
       console.log('Sending thought data:', requestData)
 
+      await auth.authStateReady()
       const token = await auth.currentUser?.getIdToken()
 
-      const response = await fetch('http://localhost:5000/api/thoughts', {
+      const response = await fetch(`${config.API_BASE_URL}/api/thoughts`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -113,9 +115,10 @@ export default function ThoughtEditor({ onThoughtSaved, initialThought = '' }: T
 
       console.log('Sending thought data:', requestData)
 
+      await auth.authStateReady()
       const token = await auth.currentUser?.getIdToken()
 
-      const response = await fetch('http://localhost:5000/api/thoughts', {
+      const response = await fetch(`${config.API_BASE_URL}/api/thoughts`, {
         method: 'POST',
         credentials: 'include',
         headers: {

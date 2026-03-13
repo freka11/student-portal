@@ -7,6 +7,7 @@ import { useToast } from '@/components/admin/Toast'
 import { FileText, Calendar, Search, Download, Eye, Loader2 } from 'lucide-react'
 import { useStudentUser } from '@/hooks/useStudentUser'
 import { auth } from '@/lib/firebase-client'
+import { answers as answersApi, questions as questionsApi } from '@/lib/api-new'
 
 interface UserAnswer {
   date: string
@@ -44,7 +45,7 @@ export default function AnswersPage() {
       const token = await auth.currentUser?.getIdToken()
       const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
       // Load answers from Firebase API
-      const answersResponse = await fetch('http://localhost:5000/api/student/answers', { credentials: 'include', headers })
+      const answersResponse = await answersApi.get(false)
       if (answersResponse.ok) {
         const answersData = await answersResponse.json()
 
@@ -61,7 +62,7 @@ export default function AnswersPage() {
         }
         
         // Load all questions to get question text (only once)
-        const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all', { headers })
+        const questionsResponse = await questionsApi.get('all')
         let questions: Question[] = []
         if (questionsResponse.ok) {
           questions = await questionsResponse.json()
@@ -128,7 +129,7 @@ export default function AnswersPage() {
       const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
       
       // First get a question ID to use
-      const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all', { headers })
+      const questionsResponse = await questionsApi.get('all')
       if (questionsResponse.ok) {
         const questions = await questionsResponse.json()
         if (questions.length > 0) {
@@ -141,13 +142,10 @@ export default function AnswersPage() {
             answer: `This is a test answer submitted at ${new Date().toLocaleString()} to verify the API works correctly.`
           }
           
-          const response = await fetch('http://localhost:5000/api/answers', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            },
-            body: JSON.stringify(testData)
+          const response = await answersApi.post({
+            questionId: testQuestion.id,
+            answer: testData.answer,
+            publishDate: new Date().toISOString().split('T')[0]
           })
           
           if (response.ok) {

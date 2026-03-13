@@ -5,6 +5,7 @@ import { Calendar, Clock, User, ChevronDown, ChevronUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/user/Card'
 import { useStudentUser } from '@/hooks/useStudentUser'
 import { auth } from '@/lib/firebase-client'
+import { questions, answers } from '@/lib/api-new'
 
 interface Question {
   id: string
@@ -43,7 +44,7 @@ export default function PreviousQuestionsPage() {
         const token = await auth.currentUser?.getIdToken()
         const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
         // Load all questions from API (not just today's)
-        const questionsResponse = await fetch('http://localhost:5000/api/questions?date=all', { headers })
+        const questionsResponse = await questions.get('all')
         let questionsData = []
         
         if (questionsResponse.ok) {
@@ -54,7 +55,7 @@ export default function PreviousQuestionsPage() {
         }
         
         // Load student answers
-        const answersResponse = await fetch('http://localhost:5000/api/answers?all=true', { headers })
+        const answersResponse = await answers.get(true)
         let answersData = []
         
         if (answersResponse.ok) {

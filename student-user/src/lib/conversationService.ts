@@ -39,6 +39,15 @@ export const getOrCreateConversation = async (
         studentUnreadCount: data.studentUnreadCount || 0,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
+        // NEW ASSIGNMENT FIELDS
+        studentPublicId: data.studentPublicId,
+        assignedTeacherId: data.assignedTeacherId || null,
+        assignedTeacherPublicId: data.assignedTeacherPublicId || null,
+        assignedTeacherName: data.assignedTeacherName || null,
+        assignedBy: data.assignedBy || null,
+        assignedAt: data.assignedAt?.toDate() || null,
+        status: data.status || 'unassigned',
+        authorizedUserIds: data.authorizedUserIds || [data.adminId, data.studentId],
       }
     }
 
@@ -65,6 +74,15 @@ export const getOrCreateConversation = async (
       studentUnreadCount: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      // NEW ASSIGNMENT FIELDS
+      studentPublicId: '',
+      assignedTeacherId: null,
+      assignedTeacherPublicId: null,
+      assignedTeacherName: null,
+      assignedBy: null,
+      assignedAt: null,
+      status: 'unassigned',
+      authorizedUserIds: [adminId, studentId],
     }
 
     await setDoc(conversationRef, newConversation)

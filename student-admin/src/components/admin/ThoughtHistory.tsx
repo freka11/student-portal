@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Calendar, User, Lightbulb } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/admin/Card'
-import { Lightbulb, Calendar, User } from 'lucide-react'
+import { config } from '@/lib/config'
 
 interface ThoughtHistoryItem {
   id: string
@@ -25,7 +26,7 @@ export function ThoughtHistory({ className, onThoughtAdded }: ThoughtHistoryProp
   useEffect(() => {
     const loadThoughts = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/thoughts?date=all')
+        const res = await fetch(`${config.API_BASE_URL}/api/thoughts?date=all`)
         if (res.ok) {
           const apiThoughts: any[] = await res.json()
 

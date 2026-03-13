@@ -7,6 +7,7 @@ import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase-client'
+import { config } from '@/lib/config'
 
 
   
@@ -76,7 +77,7 @@ export default function LoginPage() {
         // Create session via API (non-blocking)
         let sessionData: any = null
         try {
-          const sessionResponse = await fetch('http://localhost:5000/api/auth/session', {
+          const sessionResponse = await fetch(`${config.API_BASE_URL}/api/auth/session`, {
             method: 'POST',
             credentials: 'include',
             headers: {

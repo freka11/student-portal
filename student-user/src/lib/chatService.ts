@@ -188,6 +188,15 @@ export const getConversations = async (
         studentUnreadCount: data.studentUnreadCount || 0,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
+        // NEW ASSIGNMENT FIELDS
+        studentPublicId: data.studentPublicId,
+        assignedTeacherId: data.assignedTeacherId || null,
+        assignedTeacherPublicId: data.assignedTeacherPublicId || null,
+        assignedTeacherName: data.assignedTeacherName || null,
+        assignedBy: data.assignedBy || null,
+        assignedAt: data.assignedAt?.toDate() || null,
+        status: data.status || 'unassigned',
+        authorizedUserIds: data.authorizedUserIds || [data.adminId, data.studentId],
       })
     })
 

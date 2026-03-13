@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/admin/Card'
 import { Button } from '@/components/admin/Button'
 import { useToast } from '@/components/admin/Toast'
-import { MessageSquare, Search, Calendar, Crown, ChevronLeft } from 'lucide-react'
+import { MessageSquare, Search, Crown, ChevronLeft } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
 import { useTeacherChat } from '@/hooks/useTeacherChat'
 import { useAvailableUsers } from '@/hooks/useAvailableUsers'
@@ -15,6 +15,14 @@ import { useAdminUser } from '@/hooks/useAdminUser'
 import { createConversation } from '@/lib/chatService'
 import { getUsersByRole } from '@/lib/userService'
 import { auth } from '@/lib/firebase-client'
+import { config } from '@/lib/config'
+import { DateRangePicker } from '@heroui/date-picker'
+import { type DateValue } from '@internationalized/date'
+import { X } from 'lucide-react'
+type DateRange = {
+  start: DateValue
+  end: DateValue
+}
 
 
 
@@ -25,6 +33,7 @@ export default function ChatPage() {
   const [sendingMessage, setSendingMessage] = useState(false)
 
   const [teachers, setTeachers] = useState<any[]>([])
+  const [dateRange, setDateRange] = useState<DateRange | null>(null)
 
   // Always call hooks in a stable order (do not conditionally call hooks)
   const isTeacher = admin?.role === 'teacher'
@@ -110,18 +119,17 @@ export default function ChatPage() {
 
 
 
-// Clear selection if conversation no longer valid
   useEffect(() => {
-  if (!selectedConversation) return
+    if (!selectedConversation) return
 
-  const stillExists = conversations.find(
-    (c) => c.id === selectedConversation.id
-  )
+    const stillExists = conversations.find(
+      (c) => c.id === selectedConversation.id
+    )
 
-  if (!stillExists) {
-    selectConversation('')
-  }
-}, [conversations, selectedConversation, selectConversation])
+    if (!stillExists) {
+      selectConversation('')
+    }
+  }, [conversations, selectedConversation, selectConversation])
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return
@@ -130,9 +138,6 @@ export default function ChatPage() {
       setSendingMessage(true)
       await sendMessage(newMessage)
       setNewMessage('')
-     
-      
-      
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : 'Failed to send message',
@@ -190,7 +195,7 @@ export default function ChatPage() {
         throw new Error('Authentication required to assign conversations')
       }
 
-      const response = await fetch('http://localhost:5000/api/admin/assign-conversation', {
+      const response = await fetch(`${config.API_BASE_URL}/api/admin/assign-conversation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -262,8 +267,8 @@ export default function ChatPage() {
         <div className={`w-full lg:w-80 ${selectedConversation ? 'hidden lg:block' : ''}`}>
           <Card className="h-full">
             <CardContent className="p-4 h-full flex flex-col">
-              <div className="relative mb-4">
-            
+              <div className="flex items-center gap-2 mb-4">
+                <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
@@ -272,7 +277,41 @@ export default function ChatPage() {
                   onChange={(e) => searchConversations(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-[#f0f2f5] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00a884] focus:border-transparent"
                 />
-              </div>
+                
+                </div>
+                
+                <DateRangePicker
+                    value={dateRange}
+  onChange={setDateRange}
+  className="max-w-fit"
+  size="md"
+  classNames={{
+    base: "bg-white border-gray-200",
+    inputWrapper: "bg-white border-gray-200 hover:bg-gray-50",
+    input: "hidden",
+    separator: "hidden",
+    popoverContent: "bg-white border-gray-200",
+  }}
+  calendarProps={{
+    classNames: {
+      cell: "cursor-pointer",
+      cellButton:
+        "cursor-pointer hover:bg-blue-100 data-[selected=true]:bg-blue-600 data-[selected=true]:text-white",
+    },
+                    }}
+                  />
+
+  {dateRange && (
+        <button
+      onClick={() => setDateRange(null)}
+      className="px-2 py-1 text-s  hover:bg-gray-200 rounded-md cursor-pointer hover:text-red-500"
+    >
+      <X/>
+    </button>
+  )}
+                </div>
+                    
+       
 
               <div className="flex-1 min-h-0 overflow-y-auto">
                 {usersLoading && loading ? (
@@ -305,9 +344,18 @@ export default function ChatPage() {
                       )
                     }
 
+                    const filteredByDate = dateRange?.start && dateRange?.end
+                      ? conversations.filter(c => {
+                          const chatDate = new Date(c.createdAt)
+                          const startDate = new Date(dateRange.start.toString())
+                          const endDate = new Date(dateRange.end.toString())
+                          return chatDate >= startDate && chatDate <= endDate
+                        })
+                      : conversations
+
                     return (
                       <div className="space-y-1">
-                        {conversations.map((conversation) => (
+                        {filteredByDate.map((conversation) => (
                           <div
                             key={conversation.id}
                             onClick={() => selectConversation(conversation.id)}
@@ -371,7 +419,7 @@ export default function ChatPage() {
                                 )}
                               </div>
                               {conversation.adminUnreadCount > 0 && (
-                                <div className="bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0">
+                                <div className="bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shrink-0">
                                   {conversation.adminUnreadCount}
                                 </div>
                               )}
@@ -419,9 +467,9 @@ export default function ChatPage() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => selectConversation('')}
-                        className=" hover:cursor-pointer text-black"
+                        className="hover:cursor-pointer text-black"
                       >
-                        <ChevronLeft className='hover:scale-120 transition-all duration-300' />
+                        <ChevronLeft className="hover:scale-120 transition-all duration-300" />
                       </button>
                       <div className="relative bg-[#f0f2f5]">
                         <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
@@ -454,7 +502,7 @@ export default function ChatPage() {
                   />
                 </>
               ) : (
-              <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-center">
+                <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-center">
                   <div className="text-center">
                     <p className="text-black text-lg">Select a student to start chatting</p>
                     <p className="text-black text-sm mt-2">Choose from the student list on the left</p>

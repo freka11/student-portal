@@ -7,6 +7,7 @@ import { Textarea } from '@/components/admin/Textarea'
 import { HelpCircle, Save, Eye, Plus, Trash2 } from 'lucide-react'
 import { useAdminUser } from '@/hooks/useAdminUser'
 import { auth } from '@/lib/firebase-client'
+import { config } from '@/lib/config'
 
 interface Question {
   id: string
@@ -38,9 +39,10 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
   useEffect(() => {
     const loadQuestions = async () => {
       try {
+        await auth.authStateReady()
         const token = await auth.currentUser?.getIdToken()
         const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined
-        const response = await fetch('http://localhost:5000/api/questions', { headers })
+        const response = await fetch(`${config.API_BASE_URL}/api/questions`, { headers })
         if (response.ok) {
           const data = await response.json()
           // API returns array of questions with 'text' field, map to 'question' field
@@ -116,6 +118,7 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
     setIsSaving(true)
 
     try {
+      await auth.authStateReady()
       const token = await auth.currentUser?.getIdToken()
       // Save each question individually to the API
       const savePromises = validQuestions.map(async (question) => {
@@ -123,19 +126,17 @@ export default function QuestionEditor({ onQuestionSaved }: QuestionEditorProps)
         const isExistingQuestion = existingQuestions.some(eq => eq.id === question.id && !question.id.startsWith('temp-'))
 
         let requestData: any = {
-          question: question.question,
+          text: question.question,
           status: targetStatus
         }
 
         console.log('Saving question data:', requestData)
 
-        const url = `http://localhost:5000/api/questions`
-        const method = isExistingQuestion ? 'PUT' : 'POST'
+        const url = isExistingQuestion
+          ? `${config.API_BASE_URL}/api/questions?id=${encodeURIComponent(question.id)}`
+          : `${config.API_BASE_URL}/api/questions`
 
-        if (isExistingQuestion) {
-          // For existing questions, include the ID in the request body for PUT
-          requestData.id = question.id
-        }
+        const method = isExistingQuestion ? 'PATCH' : 'POST'
 
         const response = await fetch(url, {
           method,

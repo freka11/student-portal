@@ -31,7 +31,12 @@ export const getUsersByRole = async (role: 'admin' | 'student' | 'teacher' | 'su
       })
     })
 
-    return users
+    // Deduplicate users by ID to prevent duplicates
+    const uniqueUsers = users.filter((user, index, self) => 
+      index === self.findIndex((u) => u.id === user.id)
+    )
+
+    return uniqueUsers
   } catch (error) {
     console.error('Error fetching users by role:', error)
     throw error

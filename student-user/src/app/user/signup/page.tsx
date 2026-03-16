@@ -77,6 +77,19 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
+      // Check if email already exists in Firestore
+      const { collection, query, where, getDocs } = await import('firebase/firestore')
+      
+      const usersRef = collection(db, 'users')
+      const emailQuery = query(usersRef, where('email', '==', trimmedEmail))
+      const emailSnapshot = await getDocs(emailQuery)
+      
+      if (!emailSnapshot.empty) {
+        addToast('An account with this email already exists', 'error')
+        setLoading(false)
+        return
+      }
+
       const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth')
       const { auth } = await import('@/lib/firebase-client')
 
@@ -218,7 +231,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => router.push('/user/login')}
-                  className="text-blue-600 hover:underline"
+                  className="text-blue-600 hover:underline cursor-pointer"
                   disabled={loading}
                 >
                   Log in

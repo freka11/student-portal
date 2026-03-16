@@ -332,6 +332,10 @@ export default function ChatPage() {
                           u.email.toLowerCase().includes(q)
                         )
                       })
+                      // Deduplicate users by ID to prevent duplicates
+                      .filter((user, index, self) => 
+                        index === self.findIndex((u) => u.id === user.id)
+                      )
                       .sort((a, b) => a.name.localeCompare(b.name))
 
                     const hasAny = conversations.length > 0 || remainingUsers.length > 0

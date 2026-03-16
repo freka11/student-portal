@@ -220,14 +220,14 @@ export default function LoginPage() {
               </Button>
 
               <div className="text-center text-sm text-gray-700">
-                New here?{' '}
+                New user?{' '}
                 <button
                   type="button"
                   onClick={() => router.push('/user/signup')}
-                  className="text-blue-600 hover:underline"
+                  className="text-blue-600 hover:underline cursor-pointer"
                   disabled={loading}
                 >
-                  Create an account
+                  Sign up
                 </button>
               </div>
             </form>
